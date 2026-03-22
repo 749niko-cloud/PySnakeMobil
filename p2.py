@@ -55,7 +55,7 @@ def full_screen_exit():
     dis.blit(l2, (w//2-l2.get_width()//2, h//2+20))
     dis.blit(l3, (w//2-l3.get_width()//2, h//2+100))
     pygame.display.update()
-    time.sleep(3.0)
+    time.sleep(2.0)
     pygame.quit()
     sys.exit()
 
@@ -75,12 +75,8 @@ def draw_dead_eyes(bx, by):
         pygame.draw.line(dis, black, (ex-8, by+10), (ex+8, by+26), 4)
         pygame.draw.line(dis, black, (ex+8, by+10), (ex-8, by+26), 4)
 
-# --- MUSIK SETUP (2-Takt-Wechsel) ---
-f_map = {
-    'D2':147, 'E2':164, 'G2':196, 'A2':220, 'B2':246, 
-    'D3':293, 'E3':329, 'G3':392, 'A3':440, 'B3':493, 
-    'C4':523, 'D4':587, 'E4':659
-}
+# --- MUSIK SETUP ---
+f_map = {'D2':147, 'E2':164, 'G2':196, 'A2':220, 'B2':246, 'D3':293, 'E3':329, 'G3':392, 'A3':440, 'B3':493, 'C4':523, 'D4':587, 'E4':659}
 music_tick, current_track_idx, last_music_time, music_interval = 0, 0, 0, 125 
 
 def create_tracks():
@@ -89,18 +85,16 @@ def create_tracks():
     g_high = [get_f('A2'), get_f('A3'), 0, get_f('A2'), get_f('C4'), 0, get_f('D3'), get_f('E3')]
     g_low  = [get_f('D2'), get_f('D3'), 0, get_f('D2'), get_f('G2'), 0, get_f('A2'), get_f('B2')]
     t0 = g_base*2 + g_high*2 + g_low*2 + g_base*2
-
     c_base = [get_f('A2'), get_f('E3'), get_f('A3'), get_f('E3'), get_f('C4'), get_f('E3'), get_f('A3'), get_f('E3')]
     c_high = [get_f('D3'), get_f('A3'), get_f('D4'), get_f('A3'), get_f('E4'), get_f('A3'), get_f('D4'), get_f('A3')]
     c_low  = [get_f('E2'), get_f('B2'), get_f('E3'), get_f('B2'), get_f('G3'), get_f('B2'), get_f('E3'), get_f('B2')]
     t1 = c_base*2 + c_high*2 + c_low*2 + c_base*2
-
     t2 = ([get_f('E4'), 0, get_f('B3'), 0, get_f('D4'), 0, get_f('A3'), 0] * 8)
-    
     return [
         [generate_tone(fr, 0.12, 0.2, "saw") if fr > 0 else None for fr in t0],
         [generate_tone(fr, 0.08, 0.15, "saw") if fr > 0 else None for fr in t1],
-        [generate_tone(fr, 0.12, 0.12, "pulse") if fr > 0 else None for fr in t2]
+        [generate_tone(fr, 0.12, 0.12, "pulse") if fr > 0 else None for fr in t2],
+        None # OFF
     ]
 
 all_tracks = create_tracks()
@@ -130,21 +124,15 @@ def show_start_screen():
         
         mx, my = w//2-75, 230
         pygame.draw.rect(dis, head_color, [mx, my, 150, 150], border_radius=25)
-        
-        # Zunge
         if (t_now % 3 < 0.25):
             pygame.draw.rect(dis, red, [mx+65, my+140, 20, 45])
             pygame.draw.polygon(dis, red, [(mx+65, my+185), (mx+50, my+205), (mx+70, my+190)])
             pygame.draw.polygon(dis, red, [(mx+85, my+185), (mx+100, my+205), (mx+80, my+190)])
-            
-        # Augen mit Lidern
         for ex in [mx+40, mx+110]:
             pygame.draw.circle(dis, white, (ex, my+50), 22)
             pygame.draw.circle(dis, black, (ex, my+50), 9)
-            # Blinzel-Logik: Augenlider
             blink_cycle = t_now % 4
-            if blink_cycle < 0.2: # Lider schließen/öffnen
-                # Berechne Lider-Höhe basierend auf der Zeit
+            if blink_cycle < 0.2:
                 lid_h = 44 if blink_cycle < 0.1 else 44 * (1 - (blink_cycle-0.1)/0.1)
                 pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, lid_h])
 
@@ -158,7 +146,8 @@ def show_start_screen():
 
         if os.path.exists("top10.txt"):
             try:
-                scores = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in open("top10.txt").readlines() if ',' in l], reverse=True)[:5]
+                with open("top10.txt", "r") as f:
+                    scores = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in f.readlines() if ',' in l], reverse=True)[:5]
                 for i, (s, n) in enumerate(scores):
                     txt = get_font(40).render(f"{n}: {s}", True, yellow if i==0 else white)
                     dis.blit(txt, (w//2 - txt.get_width()//2, 780 + i*45))
@@ -181,26 +170,47 @@ def show_start_screen():
                     for i, btn in enumerate(music_btns):
                         if btn.collidepoint(event.pos): current_track_idx = i
             if input_active and event.type == pygame.KEYDOWN:
-                if event.key in [13, 1073741912] and player_name.strip(): pygame.key.stop_text_input(); return player_name.strip()
-                elif event.key == 8: player_name = player_name[:-1]
+                if event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and player_name.strip(): pygame.key.stop_text_input(); return player_name.strip()
+                elif event.key == pygame.K_BACKSPACE: player_name = player_name[:-1]
                 elif len(player_name) < 8 and event.unicode.isprintable(): player_name += event.unicode
         pygame.display.update(); clock.tick(60)
 
+# --- HAUPTSPIEL ---
 def gameLoop(p_name):
-    global last_snake_move
     best_s = 0
     if os.path.exists("top10.txt"):
         try:
-            scores = [int(l.split(',')[0]) for l in open("top10.txt").readlines() if ',' in l]
-            if scores: best_s = max(scores)
+            with open("top10.txt", "r") as f:
+                scores = [int(l.split(',')[0]) for l in f.readlines() if ',' in l]
+                if scores: best_s = max(scores)
         except: pass
 
     x1, y1 = (w//2//BLOCK)*BLOCK, play_start_y+(play_area_h//2//BLOCK)*BLOCK
-    snake_list, length, score = [], 1, 0
+    snake_list, length, score = [[x1, y1]], 1, 0
     x1_c, y1_c, last_dir, next_dir_q = 0, 0, "", ""
     digesting_indices, mouth_open_timer, shrink_timer = [], 0, 0
     foodx, foody = (random.randrange(0, max_x_blocks) * BLOCK, play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK)
     swipe_pos, trail, last_snake_move = None, [], pygame.time.get_ticks()
+
+    def draw_snake(is_dead=False):
+        for i, b in enumerate(snake_list):
+            is_head, is_dig = (i == len(snake_list)-1), i in digesting_indices
+            mampf = 12 if (is_head and mouth_open_timer > 0) else 0
+            extra = 8 if is_dig else (4 if (i == 0 and shrink_timer > 0) else 0)
+            
+            if is_head or is_dig or (i == 0 and shrink_timer > 0): off = -2 - mampf - extra
+            else: off = (8 - (i * 2) if i < 4 else 2)
+            
+            color = (0, 255, 100) if is_dig else (head_color if is_head else green)
+            pygame.draw.rect(dis, color, [b[0]+off, b[1]+off, BLOCK-off*2, BLOCK-off*2], border_radius=(12 if is_head else 6))
+            
+            if is_head:
+                if is_dead: draw_dead_eyes(b[0], b[1])
+                else:
+                    ey = 18 if mouth_open_timer <= 0 else 10
+                    pygame.draw.circle(dis, white, (b[0]+18, b[1]+ey), 9); pygame.draw.circle(dis, white, (b[0]+42, b[1]+ey), 9)
+                    pygame.draw.circle(dis, black, (b[0]+18, b[1]+ey-2), 4); pygame.draw.circle(dis, black, (b[0]+42, b[1]+ey-2), 4)
+                    if mouth_open_timer > 0: pygame.draw.ellipse(dis, black, [b[0]+15, b[1]+28, 30, 22])
 
     while True:
         dis.fill(black); handle_music(); now = pygame.time.get_ticks()
@@ -220,14 +230,12 @@ def gameLoop(p_name):
                 if event.pos[1] > ctrl_y: swipe_pos = event.pos; trail = [event.pos]
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
                 trail.append(event.pos); dx, dy = event.pos[0]-swipe_pos[0], event.pos[1]-swipe_pos[1]
-                if abs(dx) > 80 or abs(dy) > 80:
-                    if abs(dx) > abs(dy):
-                        d = "R" if dx > 0 else "L"
-                        if (d == "R" and last_dir != "L") or (d == "L" and last_dir != "R"): next_dir_q = d
-                    else:
-                        d = "D" if dy > 0 else "U"
-                        if (d == "D" and last_dir != "U") or (d == "U" and last_dir != "D"): next_dir_q = d
-                    swipe_pos = event.pos
+                if abs(dx) > 70 or abs(dy) > 70:
+                    new_d = ""
+                    if abs(dx) > abs(dy): new_d = "R" if dx > 0 else "L"
+                    else: new_d = "D" if dy > 0 else "U"
+                    opp = {"R":"L", "L":"R", "U":"D", "D":"U"}
+                    if new_d != opp.get(last_dir): next_dir_q = new_d; swipe_pos = event.pos
             elif event.type == pygame.MOUSEBUTTONUP: swipe_pos = None; trail = []
 
         if len(trail) > 1: pygame.draw.lines(dis, red, False, trail, 10)
@@ -238,51 +246,39 @@ def gameLoop(p_name):
                 elif next_dir_q == "L": x1_c, y1_c = -BLOCK, 0
                 elif next_dir_q == "U": x1_c, y1_c = 0, -BLOCK
                 elif next_dir_q == "D": x1_c, y1_c = 0, BLOCK
-                last_dir, next_dir_q = next_dir_q, ""
+                last_dir = next_dir_q
 
-            x1, y1 = (x1+x1_c)%(max_x_blocks*BLOCK), play_start_y+(y1-play_start_y+y1_c)%play_area_h
+            new_x, new_y = (x1+x1_c)%(max_x_blocks*BLOCK), play_start_y+(y1-play_start_y+y1_c)%play_area_h
+            
+            if [new_x, new_y] in snake_list and last_dir != "":
+                is_hs = score > best_s
+                draw_snake(is_dead=True)
+                msg_surf = get_font(130).render("NEUER HIGHSCORE!" if is_hs else "GAME OVER", True, yellow if is_hs else red)
+                dis.blit(msg_surf, (w//2-msg_surf.get_width()//2, h//2-50)); pygame.display.update()
+                if is_hs: play_victory_sound()
+                else: play_game_over_crash()
+                time.sleep(2.5); open("top10.txt", "a").write(f"{score},{p_name}\n"); return
+
+            x1, y1 = new_x, new_y
             if x1 == foodx and y1 == foody:
                 score += 10; digesting_indices.append(length); mouth_open_timer = 4
                 foodx, foody = (random.randrange(0, max_x_blocks) * BLOCK, play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK)
-                generate_tone(880, 0.1, 0.2, "sine").play()
+                s = generate_tone(880, 0.1, 0.2, "sine"); 
+                if s: s.play()
             
             snake_list.append([x1, y1])
             if len(snake_list) > length: del snake_list[0]
-            
             new_dig = []
             for idx in digesting_indices:
                 if idx > 1: new_dig.append(idx-1)
                 elif idx == 1: length += 1; shrink_timer = 3
             digesting_indices = new_dig
             if shrink_timer > 0: shrink_timer -= 1
-
-            if [x1, y1] in snake_list[:-1] and length > 1:
-                is_hs = score > best_s
-                for i, b in enumerate(snake_list):
-                    is_h = (i == len(snake_list)-1)
-                    pygame.draw.rect(dis, head_color if is_h else green, [b[0]+2, b[1]+2, BLOCK-4, BLOCK-4], border_radius=10)
-                    if is_h: draw_dead_eyes(b[0], b[1])
-                msg_surf = get_font(130).render("NEUER HIGHSCORE!" if is_hs else "GAME OVER", True, yellow if is_hs else red)
-                dis.blit(msg_surf, (w//2-msg_surf.get_width()//2, h//2-50)); pygame.display.update()
-                if is_hs: play_victory_sound()
-                else: play_game_over_crash()
-                time.sleep(2.5); open("top10.txt", "a").write(f"{score},{p_name}\n"); return
             last_snake_move = now
 
         pygame.draw.rect(dis, red, [foodx+12, foody+12, BLOCK-24, BLOCK-24], border_radius=8)
-        for i, b in enumerate(snake_list):
-            is_head, is_dig = (i == len(snake_list)-1), i in digesting_indices
-            mampf = 12 if (is_head and mouth_open_timer > 0) else 0
-            extra = 8 if is_dig else (4 if (i == 0 and shrink_timer > 0) else 0)
-            off = (-2-mampf-extra) if is_head or is_dig or (i==0 and shrink_timer > 0) else (8-(i*2) if i < 4 else 2)
-            color = (0, 255, 100) if is_dig else (head_color if is_head else green)
-            pygame.draw.rect(dis, color, [b[0]+off, b[1]+off, BLOCK-off*2, BLOCK-off*2], border_radius=(12 if is_head else 6))
-            if is_head:
-                ey = 18 if mouth_open_timer <= 0 else 10
-                pygame.draw.circle(dis, white, (b[0]+18, b[1]+ey), 9); pygame.draw.circle(dis, white, (b[0]+42, b[1]+ey), 9)
-                pygame.draw.circle(dis, black, (b[0]+18, b[1]+ey-2), 4); pygame.draw.circle(dis, black, (b[0]+42, b[1]+ey-2), 4)
-                if mouth_open_timer > 0:
-                    pygame.draw.ellipse(dis, black, [b[0]+15, b[1]+28, 30, 22]); mouth_open_timer -= 1
+        draw_snake(is_dead=False)
+        if mouth_open_timer > 0: mouth_open_timer -= 1
         pygame.display.update(); clock.tick(60)
 
 while True: gameLoop(show_start_screen())
