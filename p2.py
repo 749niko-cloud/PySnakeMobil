@@ -146,7 +146,7 @@ def show_start_screen():
         if os.path.exists("top10.txt"):
             try:
                 with open("top10.txt", "r") as f:
-                    scores = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in f.readlines() if ',' in l], reverse=True)[:5]
+                    scores = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in f.readlines() if ',' in l and l.split(',')[0].strip().isdigit()], reverse=True)[:5]
                 for i, (s, n) in enumerate(scores):
                     txt = get_font(40).render(f"{n}: {s}", True, yellow if i==0 else white)
                     dis.blit(txt, (w//2 - txt.get_width()//2, 780 + i*45))
@@ -180,9 +180,13 @@ def gameLoop(p_name):
     if os.path.exists("top10.txt"):
         try:
             with open("top10.txt", "r") as f:
-                scores = [int(l.split(',')[0]) for l in f.readlines() if ',' in l]
+                scores = []
+                for line in f:
+                    parts = line.strip().split(',')
+                    if len(parts) >= 2 and parts[0].isdigit():
+                        scores.append(int(parts[0]))
                 if scores: best_s = max(scores)
-        except: pass
+        except (IOError, ValueError): pass
 
     game_active, intro_done, intro_x = False, False, -300
     target_x, target_y = (w//2//BLOCK)*BLOCK, play_start_y+(play_area_h//2//BLOCK)*BLOCK
@@ -212,14 +216,10 @@ def gameLoop(p_name):
                     pygame.draw.circle(dis, black, (b[0]+18, b[1]+ey-2), 4); pygame.draw.circle(dis, black, (b[0]+42, b[1]+ey-2), 4)
                     if mouth_open_timer > 0: pygame.draw.ellipse(dis, black, [b[0]+15, b[1]+28, 30, 22])
 
-    # 1. INTRO ANIMATION + EI-ERSCHEINEN
     while not intro_done:
         dis.fill(black); intro_x += 15
-        
-        # Das Ei erscheint, sobald der Schwanz der Intro-Schlange den Zielpunkt verlassen hat
         if (intro_x - 4*BLOCK) > target_x:
             pygame.draw.rect(dis, white, [target_x+15, target_y+15, BLOCK-30, BLOCK-30], border_radius=22)
-
         for i in range(5): 
             px = intro_x - i*BLOCK
             off = 10 if i == 4 else 5
@@ -230,15 +230,11 @@ def gameLoop(p_name):
         if intro_x > w + 400: intro_done = True
         pygame.display.update(); clock.tick(60)
 
-    # 2. EI-MODUS (Warten auf Swipe)
     while not game_active:
         dis.fill(black)
         pygame.draw.rect(dis, white, [target_x+15, target_y+15, BLOCK-30, BLOCK-30], border_radius=22)
-        
-        # Info-Text unten
         info_txt = get_font(50).render("SWIPE HIER ZUM STARTEN", True, (100, 100, 100))
         dis.blit(info_txt, (w//2 - info_txt.get_width()//2, h - control_h // 2 - 25))
-
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h-control_h): swipe_pos = event.pos
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
@@ -249,17 +245,14 @@ def gameLoop(p_name):
                     else: next_dir_q = "D" if dy>0 else "U"
         pygame.display.update(); clock.tick(60)
 
-    # 3. SPIEL-MODUS
     while True:
         dis.fill(black); handle_music(); now = pygame.time.get_ticks()
         for rx in range(0, w, BLOCK):
             for ry in range(play_start_y, play_end_y, BLOCK): pygame.draw.rect(dis, grid_color, [rx+BLOCK//2-2, ry+BLOCK//2-2, 4, 4])
         pygame.draw.line(dis, grid_color, (0, play_start_y), (w, play_start_y), 3)
         pygame.draw.line(dis, grid_color, (0, play_end_y), (w, play_end_y), 3)
-        
         dis.blit(get_font(120).render(str(score), True, white), (50, 45))
         hs_txt = get_font(60).render(f"BEST: {best_s}", True, yellow); dis.blit(hs_txt, (w-hs_txt.get_width()-180, 70))
-        
         ctrl_y = h - control_h; pygame.draw.rect(dis, (15,15,15), [0,ctrl_y,w,control_h])
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
@@ -297,7 +290,6 @@ def gameLoop(p_name):
                 else: play_game_over_crash()
                 time.sleep(2.5); open("top10.txt", "a").write(f"{score},{p_name}\n"); return
             x1, y1 = nx, ny
-            
             if x1 == foodx and y1 == foody:
                 score += 10; digesting_indices.append(length); mouth_open_timer = 4
                 for _ in range(15): particles.append([foodx+BLOCK//2, foody+BLOCK//2, random.uniform(-5,5), random.uniform(-5,5), 20])
@@ -306,7 +298,6 @@ def gameLoop(p_name):
                     foody = play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK
                     if [foodx, foody] not in snake_list: break
                 s = generate_tone(880, 0.1, 0.2, "sine"); s.play() if s else None
-            
             snake_list.append([x1, y1])
             if len(snake_list) > length: del snake_list[0]
             new_dig = []
