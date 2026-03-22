@@ -19,6 +19,7 @@ clock = pygame.time.Clock()
 black, green, red, white, yellow = (0,0,0), (0,255,0), (255,0,0), (255,255,255), (255,255,0)
 dark_red, grid_color, head_color = (150, 0, 0), (40, 40, 40), (0, 200, 0)
 matrix_green = (0, 40, 0)
+blue_share = (0, 120, 255)
 
 # Raster & Maße
 BLOCK = 60
@@ -281,12 +282,10 @@ def gameLoop(p_name):
                     pygame.draw.circle(dis, black, (b[0]+18, b[1]+ey-2), 4); pygame.draw.circle(dis, black, (b[0]+42, b[1]+ey-2), 4)
                     if mouth_open_timer > 0: pygame.draw.ellipse(dis, black, [b[0]+15, b[1]+28, 30, 22])
 
-    # --- INTRO: MUTTER SCHLANGE LEGT DAS EI ---
+    # --- INTRO ---
     egg_laid = False
     while not intro_done:
         dis.fill(black); intro_x += 15
-        
-        # Mutter-Schlange fährt vorbei
         for i in range(5): 
             px = intro_x - i*BLOCK
             off = 10 if i == 4 else 5
@@ -294,28 +293,20 @@ def gameLoop(p_name):
             if i == 0:
                 pygame.draw.circle(dis, white, (px + 42, target_y + 18), 7)
                 pygame.draw.circle(dis, black, (px + 42, target_y + 16), 3)
-
-        # Wenn der Schwanz die Zielposition verlässt, bleibt das Ei liegen
-        if intro_x - 5*BLOCK >= target_x:
-            egg_laid = True
-            
+        if intro_x - 5*BLOCK >= target_x: egg_laid = True
         if egg_laid:
             pygame.draw.ellipse(dis, white, [target_x+10, target_y+5, BLOCK-20, BLOCK-10])
             pygame.draw.ellipse(dis, (230,230,230), [target_x+20, target_y+15, 12, 8])
-
         if intro_x > w + 400: intro_done = True
         pygame.display.update(); clock.tick(60)
 
-    # --- START-WAITSCHLEIFE: SPIELER MUSS EI ZERBRECHEN ---
+    # --- START-WAIT ---
     while not game_active:
         dis.fill(black)
-        # Das Ei wartet
         pygame.draw.ellipse(dis, white, [target_x+10, target_y+5, BLOCK-20, BLOCK-10])
         pygame.draw.ellipse(dis, (230,230,230), [target_x+20, target_y+15, 12, 8])
-        
         info_txt = get_font(50).render("SWIPE ZUM SCHLÜPFEN", True, (150, 150, 150))
         dis.blit(info_txt, (w//2 - info_txt.get_width()//2, h - control_h // 2 - 25))
-        
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h-control_h): swipe_pos = event.pos
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
@@ -324,19 +315,8 @@ def gameLoop(p_name):
                     game_active = True
                     if abs(dx)>abs(dy): next_dir_q = "R" if dx>0 else "L"
                     else: next_dir_q = "D" if dy>0 else "U"
-                    
-                    # --- BUGFIX: ZERBRECHEN WENIGER DRAMATISCH & OHNE TON ---
-                    # Ton wurde entfernt.
-                    # Schalenteile fliegen langsamer weg und purzeln eher.
                     for d_x, d_y in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1), (0,1), (-1,0), (1,0)]:
-                        shell_particles.append({
-                            'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2,
-                            # vx/vy wurden deutlich reduziert
-                            'vx': d_x * random.uniform(1.5, 4), 
-                            'vy': d_y * random.uniform(1.5, 4),
-                            # life wurde reduziert, rot Speed langsamer
-                            'life': 22, 'rot': random.randint(0,360)
-                        })
+                        shell_particles.append({'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2, 'vx': d_x * random.uniform(1.5, 4), 'vy': d_y * random.uniform(1.5, 4), 'life': 22, 'rot': random.randint(0,360)})
         pygame.display.update(); clock.tick(60)
 
     # --- HAUPTSPIEL ---
@@ -375,14 +355,49 @@ def gameLoop(p_name):
                 last_dir = next_dir_q
             nx, ny = (x1+x1_c)%(max_x_blocks*BLOCK), play_start_y+(y1-play_start_y+y1_c)%play_area_h
             if [nx, ny] in snake_list and last_dir != "":
+                # --- GAME OVER SCREEN ---
                 is_hs = score > best_s
                 draw_snake(is_dead=True)
                 msg_surf = get_font(130).render("NEUER HIGHSCORE!" if is_hs else "GAME OVER", True, yellow if is_hs else red)
-                dis.blit(msg_surf, (w//2-msg_surf.get_width()//2, h//2-50))
+                dis.blit(msg_surf, (w//2-msg_surf.get_width()//2, h//2-100))
+                
+                btn_w, btn_h = 450, 120
+                share_btn = pygame.Rect(w//2-btn_w//2, h//2+50, btn_w, btn_h)
+                pygame.draw.rect(dis, blue_share, share_btn, border_radius=20)
+                sh_txt = get_font(55).render("SCREENSHOT", True, white)
+                dis.blit(sh_txt, (share_btn.centerx-sh_txt.get_width()//2, share_btn.centery-30))
+                
                 pygame.display.update()
                 if is_hs: play_victory_sound()
                 else: play_game_over_crash()
-                time.sleep(2.5); open("top10.txt", "a").write(f"{score},{p_name}\n"); return
+                with open("top10.txt", "a") as f: f.write(f"{score},{p_name}\n")
+                
+                waiting_for_input = True
+                while waiting_for_input:
+                    for ev in pygame.event.get():
+                        if ev.type == pygame.MOUSEBUTTONDOWN:
+                            if share_btn.collidepoint(ev.pos):
+                                filename = f"Snake_Score_{score}_{int(time.time())}.jpg"
+                                
+                                # NEUER PFAD: Screenshots (meistens in DCIM)
+                                # Wir prüfen beide Varianten: Direkt unter DCIM oder in DCIM/Screenshots
+                                save_dir = "/storage/emulated/0/DCIM/Screenshots"
+                                if not os.path.exists(save_dir):
+                                    save_dir = "/sdcard/DCIM/Screenshots"
+                                    if not os.path.exists(save_dir):
+                                        save_dir = "/storage/emulated/0/Pictures/Screenshots"
+                                        if not os.path.exists(save_dir):
+                                            os.makedirs(save_dir, exist_ok=True)
+                                
+                                final_path = os.path.join(save_dir, filename)
+                                pygame.image.save(dis, final_path)
+                                
+                                feedback = get_font(40).render("IN 'SCREENSHOTS' GESPEICHERT!", True, green)
+                                dis.blit(feedback, (share_btn.centerx-feedback.get_width()//2, share_btn.bottom+20))
+                                pygame.display.update()
+                            else: waiting_for_input = False
+                return
+
             x1, y1 = nx, ny
             if x1 == foodx and y1 == foody:
                 score += 10; length += 1 
@@ -403,15 +418,13 @@ def gameLoop(p_name):
             if shrink_timer > 0: shrink_timer -= 1
             last_snake_move = now
 
-        # Partikel-Update (Essen & SCHALEN)
         for p in particles[:]:
             p[0]+=p[2]; p[1]+=p[3]; p[4]-=1
             if p[4]<=0: particles.remove(p)
             else: pygame.draw.circle(dis, red, (int(p[0]), int(p[1])), int(p[4]//4+2))
 
-        # Schalen purzeln langsamer und drehen sich langsamer
         for sp in shell_particles[:]:
-            sp['x'] += sp['vx']; sp['y'] += sp['vy']; sp['life'] -= 1; sp['rot'] += 5 # rot Speed langsamer
+            sp['x'] += sp['vx']; sp['y'] += sp['vy']; sp['life'] -= 1; sp['rot'] += 5
             if sp['life'] <= 0: shell_particles.remove(sp)
             else:
                 pts = []
