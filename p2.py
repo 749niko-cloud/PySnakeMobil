@@ -139,32 +139,19 @@ def show_start_screen():
     while True:
         dis.fill(black); t_now = time.time(); handle_music()
         
-        # 1. REVERSE MATRIX REGEN (Hintergrund, zieht nach OBEN)
         for i in range(len(matrix_columns)):
             char_y = matrix_columns[i]
             pygame.draw.rect(dis, matrix_green, [i * 40, char_y, 15, 15], border_radius=3)
             matrix_columns[i] = (char_y - 8) if char_y > -20 else h + 20
 
-        # --- 2. SCHLÄNGELNDER KÖRPER (Geht nach OBEN raus) ---
-        # Segmente werden vom Kopf nach OBEN gezeichnet
         for i in range(1, 15):
-            # Y-Position: Startet beim Kopf und geht nach OBEN (Richtung y=0)
             seg_y = 230 - i * 45
-            
-            # Amplitude nimmt zum Kopf hin (i=1) ab, nach hinten (i=14) zu.
             amplitude_factor = i * 7
-            
-            # Schlängel-Bewegung mit math.sin
             curve_x = (w // 2 - 40) + math.sin(t_now * 4 + i * 0.4) * amplitude_factor
-            
-            # Breite nimmt leicht ab für Perspektive
             seg_w = 80 - i * 2
-            
-            # Wenn das Segment noch im sichtbaren Bereich ist
             if seg_y > -40:
                 pygame.draw.rect(dis, (0, 100, 0), [curve_x, seg_y, seg_w, 40], border_radius=10)
 
-        # 3. SINUS-WELLEN TITEL
         title_str = "PYTHON 2"
         full_title_w = sum([get_font(150).size(char)[0] for char in title_str])
         curr_x = w // 2 - full_title_w // 2
@@ -176,33 +163,22 @@ def show_start_screen():
             dis.blit(char_surf, (curr_x, 40 + y_off))
             curr_x += char_surf.get_width()
         
-        # --- 4. KOPF (Komplett umgedreht, schaut nach UNTEN) ---
         mx, my = w//2-75, 230
         pygame.draw.rect(dis, head_color, [mx, my, 150, 150], border_radius=25)
         
-        # ZUNGE / FLAMMEN (Nach UNTEN gedreht)
         if (t_now % 3 < 0.25):
-            # Ansatz weiter unten
             pygame.draw.rect(dis, red, [mx+65, my+140, 20, 45])
-            # Gespaltene Zunge zeigt nach unten
             pygame.draw.polygon(dis, red, [(mx+65, my+185), (mx+50, my+205), (mx+70, my+190)])
             pygame.draw.polygon(dis, red, [(mx+85, my+185), (mx+100, my+205), (mx+80, my+190)])
             
-        # AUGEN (Nach OBEN gedreht, Richtung y=0)
         for ex in [mx+40, mx+110]:
-            # Augen sind jetzt weiter oben (Y = my + 50 statt my + 100)
             pygame.draw.circle(dis, white, (ex, my+50), 22)
             pygame.draw.circle(dis, black, (ex, my+50), 9)
-            
-            # BLINKEN (Augenlid-Animation von UNTEN nach OBEN gespiegelt)
             blink = t_now % 4
             if blink < 0.2:
-                # Augenlid schließt jetzt von UNTEN nach OBEN
                 lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
-                # Die Y-Koordinate des Lids ist jetzt oben am Auge
                 pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, lh])
 
-        # INPUT & START
         input_rect = pygame.Rect(w//2-350, 470, 700, 120)
         pygame.draw.rect(dis, yellow if input_active else (100,100,100), input_rect, 6, border_radius=15)
         name_surf = get_font(90).render(player_name + ("|" if input_active and int(t_now*2)%2==0 else ""), True, white)
@@ -211,12 +187,15 @@ def show_start_screen():
         start_btn = pygame.draw.rect(dis, green, [w//2-200, 640, 400, 120], border_radius=15)
         dis.blit(get_font(80).render("START", True, black), (start_btn.centerx-110, start_btn.y+20))
 
-        # 5. HIGHSCORE LISTE (1-10 mit Platzhaltern)
         scores_data = []
         if os.path.exists("top10.txt"):
             try:
                 with open("top10.txt", "r") as f:
-                    scores_data = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in f.readlines() if ',' in l], reverse=True)[:10]
+                    for line in f:
+                        parts = line.strip().split(',')
+                        if len(parts) == 2 and parts[0].isdigit():
+                            scores_data.append((int(parts[0]), parts[1]))
+                scores_data = sorted(scores_data, key=lambda x: x[0], reverse=True)[:10]
             except: pass
         
         for i in range(10):
@@ -229,11 +208,9 @@ def show_start_screen():
             else:
                 txt_content = f"{num_txt} . . . . . . . ."
                 color = (80, 80, 80)
-            
             score_surf = get_font(38).render(txt_content, True, color)
             dis.blit(score_surf, (w//2 - score_surf.get_width()//2, y_pos))
 
-        # MUSIK & EXIT
         music_btns = []
         for i, lab in enumerate(["G-BEAT", "CYBER", "RETRO", "OFF"]):
             r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, 1200, 260, 90], border_radius=10)
@@ -244,26 +221,35 @@ def show_start_screen():
 
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if r_exit.collidepoint(event.pos): full_screen_exit()
-                if input_rect.collidepoint(event.pos): input_active = True; pygame.key.start_text_input()
-                elif start_btn.collidepoint(event.pos) and player_name.strip(): pygame.key.stop_text_input(); return player_name.strip()
+                if r_exit.collidepoint(event.pos): 
+                    pygame.key.stop_text_input()
+                    full_screen_exit()
+                if input_rect.collidepoint(event.pos): 
+                    input_active = True; pygame.key.start_text_input()
                 else: 
+                    input_active = False 
+                    if start_btn.collidepoint(event.pos) and player_name.strip(): 
+                        pygame.key.stop_text_input(); return player_name.strip()
                     for i, btn in enumerate(music_btns):
                         if btn.collidepoint(event.pos): current_track_idx = i
             if input_active and event.type == pygame.KEYDOWN:
-                if event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and player_name.strip(): pygame.key.stop_text_input(); return player_name.strip()
+                if event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and player_name.strip(): 
+                    pygame.key.stop_text_input(); return player_name.strip()
                 elif event.key == pygame.K_BACKSPACE: player_name = player_name[:-1]
                 elif len(player_name) < 8 and event.unicode.isprintable(): player_name += event.unicode
         pygame.display.update(); clock.tick(60)
 
-# --- HAUPTSPIEL --- (Unverändert)
+# --- HAUPTSPIEL ---
 def gameLoop(p_name):
     best_s = 0
     if os.path.exists("top10.txt"):
         try:
             with open("top10.txt", "r") as f:
-                scores = [int(l.split(',')[0]) for l in f.readlines() if ',' in l]
-                if scores: best_s = max(scores)
+                for line in f:
+                    parts = line.strip().split(',')
+                    if len(parts) == 2 and parts[0].isdigit():
+                        val = int(parts[0])
+                        if val > best_s: best_s = val
         except: pass
 
     game_active, intro_done, intro_x = False, False, -300
@@ -276,6 +262,7 @@ def gameLoop(p_name):
     foodx, foody = (random.randrange(0, max_x_blocks) * BLOCK, play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK)
     swipe_pos, trail, last_snake_move = None, [], pygame.time.get_ticks()
     particles = []
+    shell_particles = [] 
 
     def draw_snake(is_dead=False):
         for i, b in enumerate(snake_list):
@@ -294,10 +281,12 @@ def gameLoop(p_name):
                     pygame.draw.circle(dis, black, (b[0]+18, b[1]+ey-2), 4); pygame.draw.circle(dis, black, (b[0]+42, b[1]+ey-2), 4)
                     if mouth_open_timer > 0: pygame.draw.ellipse(dis, black, [b[0]+15, b[1]+28, 30, 22])
 
+    # --- INTRO: MUTTER SCHLANGE LEGT DAS EI ---
+    egg_laid = False
     while not intro_done:
         dis.fill(black); intro_x += 15
-        if (intro_x - 4*BLOCK) > target_x:
-            pygame.draw.rect(dis, white, [target_x+15, target_y+15, BLOCK-30, BLOCK-30], border_radius=22)
+        
+        # Mutter-Schlange fährt vorbei
         for i in range(5): 
             px = intro_x - i*BLOCK
             off = 10 if i == 4 else 5
@@ -305,14 +294,28 @@ def gameLoop(p_name):
             if i == 0:
                 pygame.draw.circle(dis, white, (px + 42, target_y + 18), 7)
                 pygame.draw.circle(dis, black, (px + 42, target_y + 16), 3)
+
+        # Wenn der Schwanz die Zielposition verlässt, bleibt das Ei liegen
+        if intro_x - 5*BLOCK >= target_x:
+            egg_laid = True
+            
+        if egg_laid:
+            pygame.draw.ellipse(dis, white, [target_x+10, target_y+5, BLOCK-20, BLOCK-10])
+            pygame.draw.ellipse(dis, (230,230,230), [target_x+20, target_y+15, 12, 8])
+
         if intro_x > w + 400: intro_done = True
         pygame.display.update(); clock.tick(60)
 
+    # --- START-WAITSCHLEIFE: SPIELER MUSS EI ZERBRECHEN ---
     while not game_active:
         dis.fill(black)
-        pygame.draw.rect(dis, white, [target_x+15, target_y+15, BLOCK-30, BLOCK-30], border_radius=22)
-        info_txt = get_font(50).render("SWIPE HIER ZUM STARTEN", True, (100, 100, 100))
+        # Das Ei wartet
+        pygame.draw.ellipse(dis, white, [target_x+10, target_y+5, BLOCK-20, BLOCK-10])
+        pygame.draw.ellipse(dis, (230,230,230), [target_x+20, target_y+15, 12, 8])
+        
+        info_txt = get_font(50).render("SWIPE ZUM SCHLÜPFEN", True, (150, 150, 150))
         dis.blit(info_txt, (w//2 - info_txt.get_width()//2, h - control_h // 2 - 25))
+        
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h-control_h): swipe_pos = event.pos
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
@@ -321,8 +324,22 @@ def gameLoop(p_name):
                     game_active = True
                     if abs(dx)>abs(dy): next_dir_q = "R" if dx>0 else "L"
                     else: next_dir_q = "D" if dy>0 else "U"
+                    
+                    # --- BUGFIX: ZERBRECHEN WENIGER DRAMATISCH & OHNE TON ---
+                    # Ton wurde entfernt.
+                    # Schalenteile fliegen langsamer weg und purzeln eher.
+                    for d_x, d_y in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1), (0,1), (-1,0), (1,0)]:
+                        shell_particles.append({
+                            'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2,
+                            # vx/vy wurden deutlich reduziert
+                            'vx': d_x * random.uniform(1.5, 4), 
+                            'vy': d_y * random.uniform(1.5, 4),
+                            # life wurde reduziert, rot Speed langsamer
+                            'life': 22, 'rot': random.randint(0,360)
+                        })
         pygame.display.update(); clock.tick(60)
 
+    # --- HAUPTSPIEL ---
     while True:
         dis.fill(black); handle_music(); now = pygame.time.get_ticks()
         for rx in range(0, w, BLOCK):
@@ -368,7 +385,8 @@ def gameLoop(p_name):
                 time.sleep(2.5); open("top10.txt", "a").write(f"{score},{p_name}\n"); return
             x1, y1 = nx, ny
             if x1 == foodx and y1 == foody:
-                score += 10; digesting_indices.append(length); mouth_open_timer = 4
+                score += 10; length += 1 
+                digesting_indices.append(length); mouth_open_timer = 4
                 for _ in range(15): particles.append([foodx+BLOCK//2, foody+BLOCK//2, random.uniform(-5,5), random.uniform(-5,5), 20])
                 while True:
                     foodx = random.randrange(0, max_x_blocks) * BLOCK
@@ -380,14 +398,28 @@ def gameLoop(p_name):
             new_dig = []
             for idx in digesting_indices:
                 if idx > 1: new_dig.append(idx-1)
-                elif idx == 1: length += 1; shrink_timer = 3
+                elif idx == 1: shrink_timer = 3 
             digesting_indices = new_dig
             if shrink_timer > 0: shrink_timer -= 1
             last_snake_move = now
+
+        # Partikel-Update (Essen & SCHALEN)
         for p in particles[:]:
             p[0]+=p[2]; p[1]+=p[3]; p[4]-=1
             if p[4]<=0: particles.remove(p)
             else: pygame.draw.circle(dis, red, (int(p[0]), int(p[1])), int(p[4]//4+2))
+
+        # Schalen purzeln langsamer und drehen sich langsamer
+        for sp in shell_particles[:]:
+            sp['x'] += sp['vx']; sp['y'] += sp['vy']; sp['life'] -= 1; sp['rot'] += 5 # rot Speed langsamer
+            if sp['life'] <= 0: shell_particles.remove(sp)
+            else:
+                pts = []
+                for a in [0, 140, 240]:
+                    rad = math.radians(sp['rot'] + a)
+                    pts.append((sp['x'] + math.cos(rad)*18, sp['y'] + math.sin(rad)*18))
+                pygame.draw.polygon(dis, white, pts)
+
         pygame.draw.rect(dis, red, [foodx+12, foody+12, BLOCK-24, BLOCK-24], border_radius=8)
         draw_snake()
         if mouth_open_timer > 0: mouth_open_timer -= 1
