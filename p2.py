@@ -6,20 +6,12 @@ import array
 import math
 import sys
 
-# --- PORTRAIT FIX (ERZWINGT HOCHFORMAT) ---
-os.environ['SDL_HINT_ORIENTATIONS'] = 'Portrait'
-os.environ['SDL_IOS_ORIENTATIONS'] = 'Portrait'
-
 # --- INITIALISIERUNG ---
 pygame.mixer.pre_init(44100, -16, 1, 256)
 pygame.init()
 
-# Automatische Korrektur der Maße (Breite immer kleiner als Höhe)
 info = pygame.display.Info()
-actual_w, actual_h = info.current_w, info.current_h
-w = min(actual_w, actual_h)
-h = max(actual_w, actual_h)
-
+w, h = info.current_w, info.current_h
 dis = pygame.display.set_mode((w, h), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 
@@ -147,19 +139,32 @@ def show_start_screen():
     while True:
         dis.fill(black); t_now = time.time(); handle_music()
         
+        # 1. REVERSE MATRIX REGEN (Hintergrund, zieht nach OBEN)
         for i in range(len(matrix_columns)):
             char_y = matrix_columns[i]
             pygame.draw.rect(dis, matrix_green, [i * 40, char_y, 15, 15], border_radius=3)
             matrix_columns[i] = (char_y - 8) if char_y > -20 else h + 20
 
+        # --- 2. SCHLÄNGELNDER KÖRPER (Geht nach OBEN raus) ---
+        # Segmente werden vom Kopf nach OBEN gezeichnet
         for i in range(1, 15):
+            # Y-Position: Startet beim Kopf und geht nach OBEN (Richtung y=0)
             seg_y = 230 - i * 45
+            
+            # Amplitude nimmt zum Kopf hin (i=1) ab, nach hinten (i=14) zu.
             amplitude_factor = i * 7
+            
+            # Schlängel-Bewegung mit math.sin
             curve_x = (w // 2 - 40) + math.sin(t_now * 4 + i * 0.4) * amplitude_factor
+            
+            # Breite nimmt leicht ab für Perspektive
             seg_w = 80 - i * 2
+            
+            # Wenn das Segment noch im sichtbaren Bereich ist
             if seg_y > -40:
                 pygame.draw.rect(dis, (0, 100, 0), [curve_x, seg_y, seg_w, 40], border_radius=10)
 
+        # 3. SINUS-WELLEN TITEL
         title_str = "PYTHON 2"
         full_title_w = sum([get_font(150).size(char)[0] for char in title_str])
         curr_x = w // 2 - full_title_w // 2
@@ -171,22 +176,33 @@ def show_start_screen():
             dis.blit(char_surf, (curr_x, 40 + y_off))
             curr_x += char_surf.get_width()
         
+        # --- 4. KOPF (Komplett umgedreht, schaut nach UNTEN) ---
         mx, my = w//2-75, 230
         pygame.draw.rect(dis, head_color, [mx, my, 150, 150], border_radius=25)
         
+        # ZUNGE / FLAMMEN (Nach UNTEN gedreht)
         if (t_now % 3 < 0.25):
+            # Ansatz weiter unten
             pygame.draw.rect(dis, red, [mx+65, my+140, 20, 45])
+            # Gespaltene Zunge zeigt nach unten
             pygame.draw.polygon(dis, red, [(mx+65, my+185), (mx+50, my+205), (mx+70, my+190)])
             pygame.draw.polygon(dis, red, [(mx+85, my+185), (mx+100, my+205), (mx+80, my+190)])
             
+        # AUGEN (Nach OBEN gedreht, Richtung y=0)
         for ex in [mx+40, mx+110]:
+            # Augen sind jetzt weiter oben (Y = my + 50 statt my + 100)
             pygame.draw.circle(dis, white, (ex, my+50), 22)
             pygame.draw.circle(dis, black, (ex, my+50), 9)
+            
+            # BLINKEN (Augenlid-Animation von UNTEN nach OBEN gespiegelt)
             blink = t_now % 4
             if blink < 0.2:
+                # Augenlid schließt jetzt von UNTEN nach OBEN
                 lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
+                # Die Y-Koordinate des Lids ist jetzt oben am Auge
                 pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, lh])
 
+        # INPUT & START
         input_rect = pygame.Rect(w//2-350, 470, 700, 120)
         pygame.draw.rect(dis, yellow if input_active else (100,100,100), input_rect, 6, border_radius=15)
         name_surf = get_font(90).render(player_name + ("|" if input_active and int(t_now*2)%2==0 else ""), True, white)
@@ -195,6 +211,7 @@ def show_start_screen():
         start_btn = pygame.draw.rect(dis, green, [w//2-200, 640, 400, 120], border_radius=15)
         dis.blit(get_font(80).render("START", True, black), (start_btn.centerx-110, start_btn.y+20))
 
+        # 5. HIGHSCORE LISTE (1-10 mit Platzhaltern)
         scores_data = []
         if os.path.exists("top10.txt"):
             try:
@@ -212,9 +229,11 @@ def show_start_screen():
             else:
                 txt_content = f"{num_txt} . . . . . . . ."
                 color = (80, 80, 80)
+            
             score_surf = get_font(38).render(txt_content, True, color)
             dis.blit(score_surf, (w//2 - score_surf.get_width()//2, y_pos))
 
+        # MUSIK & EXIT
         music_btns = []
         for i, lab in enumerate(["G-BEAT", "CYBER", "RETRO", "OFF"]):
             r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, 1200, 260, 90], border_radius=10)
@@ -237,7 +256,7 @@ def show_start_screen():
                 elif len(player_name) < 8 and event.unicode.isprintable(): player_name += event.unicode
         pygame.display.update(); clock.tick(60)
 
-# --- HAUPTSPIEL ---
+# --- HAUPTSPIEL --- (Unverändert)
 def gameLoop(p_name):
     best_s = 0
     if os.path.exists("top10.txt"):
