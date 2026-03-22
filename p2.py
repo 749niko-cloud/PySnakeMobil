@@ -94,7 +94,7 @@ def create_tracks():
         [generate_tone(fr, 0.12, 0.2, "saw") if fr > 0 else None for fr in t0],
         [generate_tone(fr, 0.08, 0.15, "saw") if fr > 0 else None for fr in t1],
         [generate_tone(fr, 0.12, 0.12, "pulse") if fr > 0 else None for fr in t2],
-        None # OFF
+        None
     ]
 
 all_tracks = create_tracks()
@@ -129,12 +129,11 @@ def show_start_screen():
             pygame.draw.polygon(dis, red, [(mx+65, my+185), (mx+50, my+205), (mx+70, my+190)])
             pygame.draw.polygon(dis, red, [(mx+85, my+185), (mx+100, my+205), (mx+80, my+190)])
         for ex in [mx+40, mx+110]:
-            pygame.draw.circle(dis, white, (ex, my+50), 22)
-            pygame.draw.circle(dis, black, (ex, my+50), 9)
-            blink_cycle = t_now % 4
-            if blink_cycle < 0.2:
-                lid_h = 44 if blink_cycle < 0.1 else 44 * (1 - (blink_cycle-0.1)/0.1)
-                pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, lid_h])
+            pygame.draw.circle(dis, white, (ex, my+50), 22); pygame.draw.circle(dis, black, (ex, my+50), 9)
+            blink = t_now % 4
+            if blink < 0.2:
+                lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
+                pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, lh])
 
         input_rect = pygame.Rect(w//2-350, 470, 700, 120)
         pygame.draw.rect(dis, yellow if input_active else (100,100,100), input_rect, 6, border_radius=15)
@@ -185,25 +184,26 @@ def gameLoop(p_name):
                 if scores: best_s = max(scores)
         except: pass
 
-    x1, y1 = (w//2//BLOCK)*BLOCK, play_start_y+(play_area_h//2//BLOCK)*BLOCK
+    game_active, intro_done, intro_x = False, False, -300
+    target_x, target_y = (w//2//BLOCK)*BLOCK, play_start_y+(play_area_h//2//BLOCK)*BLOCK
+    x1, y1 = target_x, target_y
     snake_list, length, score = [[x1, y1]], 1, 0
     x1_c, y1_c, last_dir, next_dir_q = 0, 0, "", ""
     digesting_indices, mouth_open_timer, shrink_timer = [], 0, 0
+    
     foodx, foody = (random.randrange(0, max_x_blocks) * BLOCK, play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK)
     swipe_pos, trail, last_snake_move = None, [], pygame.time.get_ticks()
+    particles = []
 
     def draw_snake(is_dead=False):
         for i, b in enumerate(snake_list):
             is_head, is_dig = (i == len(snake_list)-1), i in digesting_indices
             mampf = 12 if (is_head and mouth_open_timer > 0) else 0
             extra = 8 if is_dig else (4 if (i == 0 and shrink_timer > 0) else 0)
-            
             if is_head or is_dig or (i == 0 and shrink_timer > 0): off = -2 - mampf - extra
             else: off = (8 - (i * 2) if i < 4 else 2)
-            
             color = (0, 255, 100) if is_dig else (head_color if is_head else green)
             pygame.draw.rect(dis, color, [b[0]+off, b[1]+off, BLOCK-off*2, BLOCK-off*2], border_radius=(12 if is_head else 6))
-            
             if is_head:
                 if is_dead: draw_dead_eyes(b[0], b[1])
                 else:
@@ -212,10 +212,50 @@ def gameLoop(p_name):
                     pygame.draw.circle(dis, black, (b[0]+18, b[1]+ey-2), 4); pygame.draw.circle(dis, black, (b[0]+42, b[1]+ey-2), 4)
                     if mouth_open_timer > 0: pygame.draw.ellipse(dis, black, [b[0]+15, b[1]+28, 30, 22])
 
+    # 1. INTRO ANIMATION + EI-ERSCHEINEN
+    while not intro_done:
+        dis.fill(black); intro_x += 15
+        
+        # Das Ei erscheint, sobald der Schwanz der Intro-Schlange den Zielpunkt verlassen hat
+        if (intro_x - 4*BLOCK) > target_x:
+            pygame.draw.rect(dis, white, [target_x+15, target_y+15, BLOCK-30, BLOCK-30], border_radius=22)
+
+        for i in range(5): 
+            px = intro_x - i*BLOCK
+            off = 10 if i == 4 else 5
+            pygame.draw.rect(dis, green, [px + off, target_y + off, BLOCK - off*2, BLOCK - off*2], border_radius=8)
+            if i == 0:
+                pygame.draw.circle(dis, white, (px + 42, target_y + 18), 7)
+                pygame.draw.circle(dis, black, (px + 42, target_y + 16), 3)
+        if intro_x > w + 400: intro_done = True
+        pygame.display.update(); clock.tick(60)
+
+    # 2. EI-MODUS (Warten auf Swipe)
+    while not game_active:
+        dis.fill(black)
+        pygame.draw.rect(dis, white, [target_x+15, target_y+15, BLOCK-30, BLOCK-30], border_radius=22)
+        
+        # Info-Text unten
+        info_txt = get_font(50).render("SWIPE HIER ZUM STARTEN", True, (100, 100, 100))
+        dis.blit(info_txt, (w//2 - info_txt.get_width()//2, h - control_h // 2 - 25))
+
+        for event in pygame.event.get():
+            if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h-control_h): swipe_pos = event.pos
+            elif event.type == pygame.MOUSEMOTION and swipe_pos:
+                dx, dy = event.pos[0]-swipe_pos[0], event.pos[1]-swipe_pos[1]
+                if abs(dx)>50 or abs(dy)>50:
+                    game_active = True
+                    if abs(dx)>abs(dy): next_dir_q = "R" if dx>0 else "L"
+                    else: next_dir_q = "D" if dy>0 else "U"
+        pygame.display.update(); clock.tick(60)
+
+    # 3. SPIEL-MODUS
     while True:
         dis.fill(black); handle_music(); now = pygame.time.get_ticks()
         for rx in range(0, w, BLOCK):
             for ry in range(play_start_y, play_end_y, BLOCK): pygame.draw.rect(dis, grid_color, [rx+BLOCK//2-2, ry+BLOCK//2-2, 4, 4])
+        pygame.draw.line(dis, grid_color, (0, play_start_y), (w, play_start_y), 3)
+        pygame.draw.line(dis, grid_color, (0, play_end_y), (w, play_end_y), 3)
         
         dis.blit(get_font(120).render(str(score), True, white), (50, 45))
         hs_txt = get_font(60).render(f"BEST: {best_s}", True, yellow); dis.blit(hs_txt, (w-hs_txt.get_width()-180, 70))
@@ -234,8 +274,7 @@ def gameLoop(p_name):
                     new_d = ""
                     if abs(dx) > abs(dy): new_d = "R" if dx > 0 else "L"
                     else: new_d = "D" if dy > 0 else "U"
-                    opp = {"R":"L", "L":"R", "U":"D", "D":"U"}
-                    if new_d != opp.get(last_dir): next_dir_q = new_d; swipe_pos = event.pos
+                    if new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(last_dir): next_dir_q = new_d; swipe_pos = event.pos
             elif event.type == pygame.MOUSEBUTTONUP: swipe_pos = None; trail = []
 
         if len(trail) > 1: pygame.draw.lines(dis, red, False, trail, 10)
@@ -247,24 +286,26 @@ def gameLoop(p_name):
                 elif next_dir_q == "U": x1_c, y1_c = 0, -BLOCK
                 elif next_dir_q == "D": x1_c, y1_c = 0, BLOCK
                 last_dir = next_dir_q
-
-            new_x, new_y = (x1+x1_c)%(max_x_blocks*BLOCK), play_start_y+(y1-play_start_y+y1_c)%play_area_h
-            
-            if [new_x, new_y] in snake_list and last_dir != "":
+            nx, ny = (x1+x1_c)%(max_x_blocks*BLOCK), play_start_y+(y1-play_start_y+y1_c)%play_area_h
+            if [nx, ny] in snake_list and last_dir != "":
                 is_hs = score > best_s
                 draw_snake(is_dead=True)
                 msg_surf = get_font(130).render("NEUER HIGHSCORE!" if is_hs else "GAME OVER", True, yellow if is_hs else red)
-                dis.blit(msg_surf, (w//2-msg_surf.get_width()//2, h//2-50)); pygame.display.update()
+                dis.blit(msg_surf, (w//2-msg_surf.get_width()//2, h//2-50))
+                pygame.display.update()
                 if is_hs: play_victory_sound()
                 else: play_game_over_crash()
                 time.sleep(2.5); open("top10.txt", "a").write(f"{score},{p_name}\n"); return
-
-            x1, y1 = new_x, new_y
+            x1, y1 = nx, ny
+            
             if x1 == foodx and y1 == foody:
                 score += 10; digesting_indices.append(length); mouth_open_timer = 4
-                foodx, foody = (random.randrange(0, max_x_blocks) * BLOCK, play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK)
-                s = generate_tone(880, 0.1, 0.2, "sine"); 
-                if s: s.play()
+                for _ in range(15): particles.append([foodx+BLOCK//2, foody+BLOCK//2, random.uniform(-5,5), random.uniform(-5,5), 20])
+                while True:
+                    foodx = random.randrange(0, max_x_blocks) * BLOCK
+                    foody = play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK
+                    if [foodx, foody] not in snake_list: break
+                s = generate_tone(880, 0.1, 0.2, "sine"); s.play() if s else None
             
             snake_list.append([x1, y1])
             if len(snake_list) > length: del snake_list[0]
@@ -276,8 +317,12 @@ def gameLoop(p_name):
             if shrink_timer > 0: shrink_timer -= 1
             last_snake_move = now
 
+        for p in particles[:]:
+            p[0]+=p[2]; p[1]+=p[3]; p[4]-=1
+            if p[4]<=0: particles.remove(p)
+            else: pygame.draw.circle(dis, red, (int(p[0]), int(p[1])), int(p[4]//4+2))
         pygame.draw.rect(dis, red, [foodx+12, foody+12, BLOCK-24, BLOCK-24], border_radius=8)
-        draw_snake(is_dead=False)
+        draw_snake()
         if mouth_open_timer > 0: mouth_open_timer -= 1
         pygame.display.update(); clock.tick(60)
 
