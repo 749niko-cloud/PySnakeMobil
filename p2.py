@@ -6,18 +6,27 @@ import array
 import math
 import sys
 
+# --- PORTRAIT FIX (ERZWINGT HOCHFORMAT) ---
+os.environ['SDL_HINT_ORIENTATIONS'] = 'Portrait'
+os.environ['SDL_IOS_ORIENTATIONS'] = 'Portrait'
+
 # --- INITIALISIERUNG ---
 pygame.mixer.pre_init(44100, -16, 1, 256)
 pygame.init()
 
+# Automatische Korrektur der Maße (Breite immer kleiner als Höhe)
 info = pygame.display.Info()
-w, h = info.current_w, info.current_h
+actual_w, actual_h = info.current_w, info.current_h
+w = min(actual_w, actual_h)
+h = max(actual_w, actual_h)
+
 dis = pygame.display.set_mode((w, h), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 
 # Farben
 black, green, red, white, yellow = (0,0,0), (0,255,0), (255,0,0), (255,255,255), (255,255,0)
 dark_red, grid_color, head_color = (150, 0, 0), (40, 40, 40), (0, 200, 0)
+matrix_green = (0, 40, 0)
 
 # Raster & Maße
 BLOCK = 60
@@ -26,6 +35,9 @@ play_area_h = ((h - hud_h - control_h) // BLOCK) * BLOCK
 play_start_y = hud_h + (h - hud_h - control_h - play_area_h) // 2
 play_end_y = play_start_y + play_area_h
 max_x_blocks = w // BLOCK
+
+# Globaler Status für einmaliges Intro
+FIRST_START = True
 
 # --- BASIS FUNKTIONEN ---
 def get_font(size):
@@ -112,24 +124,64 @@ def handle_music():
 
 # --- SCREENS ---
 def show_start_screen():
-    global current_track_idx
+    global current_track_idx, FIRST_START
+    
+    if FIRST_START:
+        terminal_font = get_font(35)
+        boot_messages = ["> INITIALIZING NEURAL LINKS...", "> LOADING SNAKE CORE 2.0...", "> CALIBRATING SWIPE SENSORS...", "> SYSTEM CHECK: OPTIMAL.", "> ESTABLISHING GEMINI-UPLINK...", "> READY FOR INPUT."]
+        for i, msg in enumerate(boot_messages):
+            dis.fill(black)
+            for j in range(i + 1):
+                txt = terminal_font.render(boot_messages[j], True, green)
+                dis.blit(txt, (50, 50 + j * 50))
+            pygame.display.update()
+            time.sleep(0.6)
+        time.sleep(0.8)
+        FIRST_START = False
+
     player_name, input_active = "", True
     pygame.key.start_text_input()
+    
+    matrix_columns = [random.randint(0, h) for _ in range(w // 40)]
+    
     while True:
         dis.fill(black); t_now = time.time(); handle_music()
-        pulse = math.sin(t_now * 3) * 5
-        title_font = get_font(int(150 + pulse))
-        shadow = title_font.render("PYTHON 2", True, dark_red); dis.blit(shadow, (w//2-shadow.get_width()//2+8, 48))
-        title = title_font.render("PYTHON 2", True, (255, 200, 0)); dis.blit(title, (w//2-title.get_width()//2, 40))
+        
+        for i in range(len(matrix_columns)):
+            char_y = matrix_columns[i]
+            pygame.draw.rect(dis, matrix_green, [i * 40, char_y, 15, 15], border_radius=3)
+            matrix_columns[i] = (char_y - 8) if char_y > -20 else h + 20
+
+        for i in range(1, 15):
+            seg_y = 230 - i * 45
+            amplitude_factor = i * 7
+            curve_x = (w // 2 - 40) + math.sin(t_now * 4 + i * 0.4) * amplitude_factor
+            seg_w = 80 - i * 2
+            if seg_y > -40:
+                pygame.draw.rect(dis, (0, 100, 0), [curve_x, seg_y, seg_w, 40], border_radius=10)
+
+        title_str = "PYTHON 2"
+        full_title_w = sum([get_font(150).size(char)[0] for char in title_str])
+        curr_x = w // 2 - full_title_w // 2
+        for i, char in enumerate(title_str):
+            y_off = math.sin(t_now * 5 + i * 0.5) * 15
+            char_surf = get_font(150).render(char, True, (255, 200, 0))
+            shadow_surf = get_font(150).render(char, True, dark_red)
+            dis.blit(shadow_surf, (curr_x + 8, 48 + y_off))
+            dis.blit(char_surf, (curr_x, 40 + y_off))
+            curr_x += char_surf.get_width()
         
         mx, my = w//2-75, 230
         pygame.draw.rect(dis, head_color, [mx, my, 150, 150], border_radius=25)
+        
         if (t_now % 3 < 0.25):
             pygame.draw.rect(dis, red, [mx+65, my+140, 20, 45])
             pygame.draw.polygon(dis, red, [(mx+65, my+185), (mx+50, my+205), (mx+70, my+190)])
             pygame.draw.polygon(dis, red, [(mx+85, my+185), (mx+100, my+205), (mx+80, my+190)])
+            
         for ex in [mx+40, mx+110]:
-            pygame.draw.circle(dis, white, (ex, my+50), 22); pygame.draw.circle(dis, black, (ex, my+50), 9)
+            pygame.draw.circle(dis, white, (ex, my+50), 22)
+            pygame.draw.circle(dis, black, (ex, my+50), 9)
             blink = t_now % 4
             if blink < 0.2:
                 lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
@@ -143,19 +195,30 @@ def show_start_screen():
         start_btn = pygame.draw.rect(dis, green, [w//2-200, 640, 400, 120], border_radius=15)
         dis.blit(get_font(80).render("START", True, black), (start_btn.centerx-110, start_btn.y+20))
 
+        scores_data = []
         if os.path.exists("top10.txt"):
             try:
                 with open("top10.txt", "r") as f:
-                    scores = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in f.readlines() if ',' in l and l.split(',')[0].strip().isdigit()], reverse=True)[:5]
-                for i, (s, n) in enumerate(scores):
-                    txt = get_font(40).render(f"{n}: {s}", True, yellow if i==0 else white)
-                    dis.blit(txt, (w//2 - txt.get_width()//2, 780 + i*45))
+                    scores_data = sorted([(int(l.split(',')[0]), l.split(',')[1].strip()) for l in f.readlines() if ',' in l], reverse=True)[:10]
             except: pass
+        
+        for i in range(10):
+            y_pos = 780 + i * 42
+            num_txt = f"{i+1:2d}. "
+            if i < len(scores_data):
+                s, n = scores_data[i]
+                txt_content = f"{num_txt}{n}: {s}"
+                color = yellow if i == 0 else white
+            else:
+                txt_content = f"{num_txt} . . . . . . . ."
+                color = (80, 80, 80)
+            score_surf = get_font(38).render(txt_content, True, color)
+            dis.blit(score_surf, (w//2 - score_surf.get_width()//2, y_pos))
 
         music_btns = []
         for i, lab in enumerate(["G-BEAT", "CYBER", "RETRO", "OFF"]):
-            r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, 1150, 260, 100], border_radius=10)
-            music_btns.append(r); dis.blit(get_font(45).render(lab, True, black if current_track_idx==i else white), (r.centerx-60, r.y+25))
+            r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, 1200, 260, 90], border_radius=10)
+            music_btns.append(r); dis.blit(get_font(40).render(lab, True, black if current_track_idx==i else white), (r.centerx-55, r.y+25))
             
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
@@ -180,13 +243,9 @@ def gameLoop(p_name):
     if os.path.exists("top10.txt"):
         try:
             with open("top10.txt", "r") as f:
-                scores = []
-                for line in f:
-                    parts = line.strip().split(',')
-                    if len(parts) >= 2 and parts[0].isdigit():
-                        scores.append(int(parts[0]))
+                scores = [int(l.split(',')[0]) for l in f.readlines() if ',' in l]
                 if scores: best_s = max(scores)
-        except (IOError, ValueError): pass
+        except: pass
 
     game_active, intro_done, intro_x = False, False, -300
     target_x, target_y = (w//2//BLOCK)*BLOCK, play_start_y+(play_area_h//2//BLOCK)*BLOCK
@@ -269,9 +328,8 @@ def gameLoop(p_name):
                     else: new_d = "D" if dy > 0 else "U"
                     if new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(last_dir): next_dir_q = new_d; swipe_pos = event.pos
             elif event.type == pygame.MOUSEBUTTONUP: swipe_pos = None; trail = []
-
-        if len(trail) > 1: pygame.draw.lines(dis, red, False, trail, 10)
         
+        if len(trail) > 1: pygame.draw.lines(dis, red, False, trail, 10)
         if now - last_snake_move >= 130:
             if next_dir_q:
                 if next_dir_q == "R": x1_c, y1_c = BLOCK, 0
@@ -307,7 +365,6 @@ def gameLoop(p_name):
             digesting_indices = new_dig
             if shrink_timer > 0: shrink_timer -= 1
             last_snake_move = now
-
         for p in particles[:]:
             p[0]+=p[2]; p[1]+=p[3]; p[4]-=1
             if p[4]<=0: particles.remove(p)
@@ -317,4 +374,5 @@ def gameLoop(p_name):
         if mouth_open_timer > 0: mouth_open_timer -= 1
         pygame.display.update(); clock.tick(60)
 
+# --- PROGRAMMSTART ---
 while True: gameLoop(show_start_screen())
