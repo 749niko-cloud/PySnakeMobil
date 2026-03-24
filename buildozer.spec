@@ -1,12 +1,15 @@
 [app]
-# (str) Title of your application
 title = PySnakeMobil
-
-# (str) Package name
 package.name = pysnakemobil
-
-# (str) Package domain (unique)
 package.domain = org.snakemobil
+version = 1.0.0
+# optional für Semver:
+# version.regex = ^(\d+\.\d+\.\d+)$
+
+# Icon & startbild (für Build und Store)
+icon.filename = icon.png
+# optional: start image für Ladebildschirm
+presplash.filename = presplash.png
 
 # (str) Source code where the main.py is located
 source.dir = .
@@ -24,16 +27,10 @@ android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,ACCE
 # (int) Android API to use
 android.api = 33
 android.minapi = 21
-android.arch = armeabi-v7a,arm64-v8a
+android.archs = armeabi-v7a,arm64-v8a
 
-# Python for Android - use pygame bootstrap
-p4a.bootstrap = pygame
-p4a.branch = master
-
-# Buildozer command target logic
-# debug: buildozer android debug
-# release: buildozer android release
-
-[buildozer]
+# Use SDL2 bootstrap (not the removed pygame bootstrap)
+p4a.bootstrap = sdl2
+p4a.branch = release-2022.12.20
 log_level = 2
 warn_on_root = 1
