@@ -379,15 +379,15 @@ def gameLoop(p_name):
                             if share_btn.collidepoint(ev.pos):
                                 filename = f"Snake_Score_{score}_{int(time.time())}.jpg"
                                 
-                                # NEUER PFAD: Screenshots (meistens in DCIM)
-                                # Wir prüfen beide Varianten: Direkt unter DCIM oder in DCIM/Screenshots
-                                save_dir = "/storage/emulated/0/DCIM/Screenshots"
+                                # Optimized for Android Scoped Storage (API 33+)
+                                try:
+                                    from android.storage import primary_external_storage_path
+                                    save_dir = os.path.join(primary_external_storage_path(), "DCIM", "PySnake")
+                                except ImportError:
+                                    save_dir = "screenshots"
+                                
                                 if not os.path.exists(save_dir):
-                                    save_dir = "/sdcard/DCIM/Screenshots"
-                                    if not os.path.exists(save_dir):
-                                        save_dir = "/storage/emulated/0/Pictures/Screenshots"
-                                        if not os.path.exists(save_dir):
-                                            os.makedirs(save_dir, exist_ok=True)
+                                    os.makedirs(save_dir, exist_ok=True)
                                 
                                 final_path = os.path.join(save_dir, filename)
                                 pygame.image.save(dis, final_path)

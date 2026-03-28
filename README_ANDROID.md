@@ -19,7 +19,7 @@ Vollständiges pygame-Original portiert zu Android via buildozer + python-for-an
 
 ---
 
-## 🛠️ Vorbereitung (Windows → Android)
+## 🛠️ Vorbereitung (In WSL Ubuntu ausführen)
 
 ### 1. WSL2 Ubuntu einrichten
 
@@ -36,15 +36,14 @@ wsl
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip git openjdk-11-jdk unzip build-essential
+sudo apt install -y python3 python3-pip python3-venv git openjdk-17-jdk unzip build-essential ffmpeg libssl-dev pkg-config autoconf libtool libffi-dev libltdl-dev cmake zlib1g-dev zip patch python3-dev libsqlite3-dev libbz2-dev liblzma-dev libreadline-dev libncurses5-dev libncursesw5-dev libtinfo5 libjpeg-dev
 ```
 
 ### 3. Android SDK + buildozer installieren
 
 ```bash
 pip install --upgrade pip
-pip install buildozer cython virtualenv
-pip install python-for-android
+pip install --user buildozer cython virtualenv
 ```
 
 Lade Android SDK herunter (minimum API 21, zielAPI 33):
@@ -76,6 +75,8 @@ cd /mnt/c/Users/jo/OneDrive/Dokumente/GitHub/PySnakeMobil
 ### Debug APK (Test)
 
 ```bash
+# Erforderlich für Ubuntu 23.04+ / Python 3.12+
+export PIP_BREAK_SYSTEM_PACKAGES=1
 buildozer -v android debug
 ```
 

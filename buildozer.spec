@@ -2,35 +2,41 @@
 title = PySnakeMobil
 package.name = pysnakemobil
 package.domain = org.snakemobil
-version = 1.0.0
-# optional für Semver:
-# version.regex = ^(\d+\.\d+\.\d+)$
-
-# Icon & startbild (für Build und Store)
-icon.filename = icon.png
-# optional: start image für Ladebildschirm
-presplash.filename = presplash.png
-
-# (str) Source code where the main.py is located
 source.dir = .
-source.include_exts = py,png,jpg,kv
+source.include_exts = py,png,jpg,kv,atlas,txt,wav,ogg
+version = 0.1
 
-# (list) Application requirements
-requirements = python3,pygame,numpy
+# Requirements: pygame is essential. 
+# python3 and android are handled by the p4a recipes.
+requirements = python3,pygame==2.5.2,android
 
-# (str) Supported orientation: landscape, portrait or all
 orientation = portrait
+fullscreen = 1
+android.archs = arm64-v8a, armeabi-v7a
+android.allow_backup = True
 
-# (list) Permissions
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,ACCESS_COARSE_LOCATION,ACCESS_FINE_LOCATION,MODIFY_AUDIO_SETTINGS,VIBRATE,CAMERA
+# Permissions: Needed for saving screenshots and core functionality
+android.permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, INTERNET
 
-# (int) Android API to use
-android.api = 33
+# Icon and Presplash (using your icon.png for both)
+icon.filename = %(source.dir)s/icon.png
+presplash.filename = %(source.dir)s/icon.png
+
+# Android API levels (Play Store requires Target API 34+ for new apps)
+android.api = 34
 android.minapi = 21
-android.archs = armeabi-v7a,arm64-v8a
+android.ndk = 25b
 
-# Use SDL2 bootstrap (not the removed pygame bootstrap)
-p4a.bootstrap = sdl2
-p4a.branch = release-2022.12.20
+# Standard buildozer requirements for p4a
+p4a.branch = master
+
+[buildozer]
 log_level = 2
 warn_on_root = 1
+
+# Release settings (Use these when you are ready for the Play Store)
+# android.release_artifact = aab
+# android.keystore = /home/user/keys/mykey.keystore
+# android.keystore_password = password
+# android.keyalias = alias
+# android.keyalias_password = password
