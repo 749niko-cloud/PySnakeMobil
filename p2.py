@@ -196,6 +196,47 @@ def handle_music():
         if note: music_channel.play(note)
     _fire_beat(music_tick)
     music_tick += 1
+
+def get_point_at_distance(path, head_idx, distance):
+    acc_dist = 0.0
+    curr_idx = int(head_idx)
+    if curr_idx >= len(path): curr_idx = len(path) - 1
+    
+    while curr_idx > 0:
+        p1 = path[curr_idx]
+        p2 = path[curr_idx - 1]
+        d = math.hypot(p1[0]-p2[0], p1[1]-p2[1])
+        if acc_dist + d >= distance:
+            rem = distance - acc_dist
+            ratio = rem / d if d > 0 else 0
+            return (p1[0] + (p2[0]-p1[0])*ratio, p1[1] + (p2[1]-p1[1])*ratio), curr_idx - 1
+        acc_dist += d
+        curr_idx -= 1
+    return path[0], 0
+
+def draw_oriented_body(surface, cx, cy, w_seg, h_seg, dx, dy):
+    surf = pygame.Surface((w_seg, h_seg), pygame.SRCALPHA)
+    pygame.draw.rect(surf, (0, 100, 0), [0, 0, w_seg, h_seg], border_radius=10)
+    angle = math.degrees(math.atan2(dx, dy))
+    rotated = pygame.transform.rotate(surf, angle)
+    surface.blit(rotated, rotated.get_rect(center=(cx, cy)))
+
+def get_head_surf(t_now):
+    surf = pygame.Surface((250, 250), pygame.SRCALPHA)
+    pygame.draw.rect(surf, head_color, [50, 50, 150, 150], border_radius=25)
+    if t_now % 3 < 0.25:
+        pygame.draw.rect(surf, red, [115, 190, 20, 35])
+        pygame.draw.polygon(surf, red, [(115, 225), (100, 245), (120, 230)])
+        pygame.draw.polygon(surf, red, [(135, 225), (150, 245), (130, 230)])
+    for ex in [90, 160]:
+        pygame.draw.circle(surf, white, (ex, 100), 22)
+        pygame.draw.circle(surf, black, (ex, 100), 9)
+        blink = t_now % 4
+        if blink < 0.2:
+            lh = 44 if blink < 0.1 else 44 * (1 - (blink - 0.1) / 0.1)
+            pygame.draw.rect(surf, head_color, [ex-23, 100-22, 46, int(lh)])
+    return surf
+
 # --- SCREENS ---
 def show_start_screen():
     global current_track_idx, FIRST_START
@@ -215,6 +256,147 @@ def show_start_screen():
         b1 = generate_tone(880, 0.1, 0.2, "square"); b1.play() if b1 else None; time.sleep(0.12)
         b2 = generate_tone(1760, 0.15, 0.2, "square"); b2.play() if b2 else None
         time.sleep(0.5)
+
+        pygame.time.set_timer(MUSIC_EVENT, 0)
+
+        # ══════════════════════════════════════════════════
+        # PHASE 1: Zufälliges Schlängeln
+        # ══════════════════════════════════════════════════
+        raw_path = []
+        for i in range(2500):
+            t = i / 2500.0
+            y = (h + 1800) - t * (h + 3800) 
+            x = w/2 + math.sin(t * math.pi * 9.5) * (w*0.45) + math.cos(t * math.pi * 5.2) * (w*0.2)
+            raw_path.append((x, y))
+            
+        equi_path = [raw_path[0]]
+        for pt in raw_path[1:]:
+            last_pt = equi_path[-1]
+            if math.hypot(pt[0]-last_pt[0], pt[1]-last_pt[1]) >= 8:
+                equi_path.append(pt)
+
+        NUM_SLITHER_SEGS = 35
+        SEG_DIST = 45
+        idx_float = 0.0
+        slithering = True
+        mat_c = [random.randint(0, h) for _ in range(w // 40)]
+
+        while slithering:
+            t_now = time.time()
+            dis.fill(black)
+            for event in pygame.event.get(): pass
+            
+            for ci in range(len(mat_c)):
+                cy = mat_c[ci]
+                pygame.draw.rect(dis, matrix_green, [ci * 40, cy, 15, 15], border_radius=3)
+                mat_c[ci] = (cy - 8) if cy > -20 else h + 20
+                
+            idx_float += 2.5
+            head_idx = int(idx_float)
+            if head_idx >= len(equi_path):
+                slithering = False
+                break
+                
+            # Körper zeichnen (Schwanz zuerst)
+            for i in range(NUM_SLITHER_SEGS - 1, 0, -1):
+                target_dist = i * SEG_DIST
+                pt, p_idx = get_point_at_distance(equi_path, head_idx, target_dist)
+                
+                if p_idx + 1 < len(equi_path):
+                    px, py = equi_path[p_idx + 1]
+                    dx, dy = px - pt[0], py - pt[1]
+                else:
+                    dx, dy = 0, -1
+                    
+                if dx == 0 and dy == 0: dy = -1
+                seg_w = max(20, 80 - i * 1.5)
+                draw_oriented_body(dis, pt[0], pt[1], int(seg_w), 40, dx, dy)
+                
+            # Kopf zeichnen
+            hx, hy = equi_path[head_idx]
+            pt_back, _ = get_point_at_distance(equi_path, head_idx, 10)
+            hdx, hdy = hx - pt_back[0], hy - pt_back[1]
+            if hdx == 0 and hdy == 0: hdy = -1
+            
+            h_surf = get_head_surf(t_now)
+            head_angle = math.degrees(math.atan2(hdx, hdy))
+            rot_head = pygame.transform.rotate(h_surf, head_angle)
+            dis.blit(rot_head, rot_head.get_rect(center=(hx, hy)))
+            
+            pygame.display.update()
+            clock.tick(60)
+
+        # ══════════════════════════════════════════════════
+        # PHASE 2: Finaler Drop und Fade-In
+        # ══════════════════════════════════════════════════
+        target_my = 230
+        start_my = -700  
+        TOTAL_FRAMES = 160  
+        FADE_FRAMES  = 50   
+        music_started = False
+
+        for frame in range(TOTAL_FRAMES + FADE_FRAMES):
+            t_now = time.time()
+            dis.fill(black)
+            for event in pygame.event.get(): pass 
+
+            for ci in range(len(mat_c)):
+                cy = mat_c[ci]
+                pygame.draw.rect(dis, matrix_green, [ci * 40, cy, 15, 15], border_radius=3)
+                mat_c[ci] = (cy - 8) if cy > -20 else h + 20
+
+            progress = min(1.0, frame / TOTAL_FRAMES)
+            ease_out = 1.0 - (1.0 - progress) ** 2
+            current_my = start_my + (target_my - start_my) * ease_out
+            mx = w // 2 - 75
+
+            for i in range(14, 0, -1):
+                seg_y = current_my - i * 45
+                amplitude_factor = i * 7
+                curve_x = (w // 2 - 40) + math.sin(t_now * 4 + i * 0.4) * amplitude_factor
+                seg_w = 80 - i * 2
+                if seg_y > -40:
+                    pygame.draw.rect(dis, (0, 100, 0), [curve_x, seg_y, seg_w, 40], border_radius=10)
+
+            if current_my > -150:
+                pygame.draw.rect(dis, head_color, [mx, current_my, 150, 150], border_radius=25)
+                if t_now % 3 < 0.25:
+                    pygame.draw.rect(dis, red, [mx+65, current_my+140, 20, 45])
+                    pygame.draw.polygon(dis, red, [(mx+65, current_my+185), (mx+50, current_my+205), (mx+70, current_my+190)])
+                    pygame.draw.polygon(dis, red, [(mx+85, current_my+185), (mx+100, current_my+205), (mx+80, current_my+190)])
+                for ex in [mx + 40, mx + 110]:
+                    pygame.draw.circle(dis, white, (ex, current_my + 50), 22)
+                    pygame.draw.circle(dis, black, (ex, current_my + 50),  9)
+                    blink = t_now % 4
+                    if blink < 0.2:
+                        lh = 44 if blink < 0.1 else 44 * (1 - (blink - 0.1) / 0.1)
+                        pygame.draw.rect(dis, head_color, [ex-23, current_my+50-22, 46, int(lh)])
+
+            if progress >= 0.8:
+                if not music_started:
+                    pygame.time.set_timer(MUSIC_EVENT, music_interval)
+                    music_started = True
+
+                fi_f = frame - int(TOTAL_FRAMES * 0.8)
+                fi_t = min(1.0, fi_f / FADE_FRAMES)
+                title_str = "PYTHON 2"
+                full_tw = sum(get_font(150).size(c)[0] for c in title_str)
+                cx2 = w // 2 - full_tw // 2
+                for i, char in enumerate(title_str):
+                    y_off = math.sin(t_now * 5 + i * 0.5) * 15
+                    cs = get_font(150).render(char, True, (255, 200, 0))
+                    ss = get_font(150).render(char, True, dark_red)
+                    cs.set_alpha(int(255 * fi_t))
+                    ss.set_alpha(int(200 * fi_t))
+                    dis.blit(ss, (cx2 + 8, 48 + y_off))
+                    dis.blit(cs, (cx2,      40 + y_off))
+                    cx2 += cs.get_width()
+
+            pygame.display.update()
+            clock.tick(60)
+
+        if not music_started:
+            pygame.time.set_timer(MUSIC_EVENT, music_interval)
         FIRST_START = False
 
     player_name, input_active = "", True
@@ -256,7 +438,7 @@ def show_start_screen():
             blink = t_now % 4
             if blink < 0.2:
                 lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
-                pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, lh])
+                pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, int(lh)])
         input_rect = pygame.Rect(w//2-350, 470, 700, 120)
         pygame.draw.rect(dis, yellow if input_active else (100,100,100), input_rect, 6, border_radius=15)
         name_surf = get_font(90).render(player_name + ("|" if input_active and int(t_now*2)%2==0 else ""), True, white)
@@ -445,7 +627,6 @@ def gameLoop(p_name):
                 if is_hs: play_victory_sound()
                 else: play_game_over_crash()
                 
-                # --- Highscore Speichern Logik ---
                 scores_data = []
                 if os.path.exists("top10.txt"):
                     try:
@@ -465,7 +646,6 @@ def gameLoop(p_name):
                     for ev in pygame.event.get():
                         if ev.type == pygame.MOUSEBUTTONDOWN:
                             if share_btn.collidepoint(ev.pos):
-                                # Fix: Immer derselbe Name, um Datenmüll zu vermeiden
                                 filename = "Snake_Score_Last.jpg"
                                 try:
                                     pygame.image.save(dis, filename)
@@ -487,14 +667,10 @@ def gameLoop(p_name):
                     foody = play_start_y + random.randrange(0, play_area_h // BLOCK) * BLOCK
                     if [foodx, foody] not in snake_list: break
                 s = generate_tone(880, 0.1, 0.2, "sine"); s.play() if s else None
-                        # --- KORRIGIERTE LOGIK FÜR DIE BEULEN ---
+            
             snake_list.append([x1, y1])
             
             if len(snake_list) > length:
-                # Normaler Schritt: Hinten wird gelöscht.
-                # Damit die Beule optisch an derselben Stelle bleibt, 
-                # während die Liste vorne wächst und hinten schrumpft,
-                # müssen alle Beulen-Indizes um 1 sinken.
                 del snake_list[0]
                 new_dig = []
                 for idx in digesting_indices:
@@ -503,15 +679,10 @@ def gameLoop(p_name):
                     elif idx == 1:
                         shrink_timer = 3
                 digesting_indices = new_dig
-            else:
-                # Die Schlange ist gerade gewachsen (Essen wurde verdaut):
-                # Wir löschen hinten NICHTS. 
-                # Die Indizes in der Liste bleiben also für diesen Schritt stabil.
-                pass
+            else: pass
 
             if shrink_timer > 0: shrink_timer -= 1
             last_snake_move = now
-
 
         for p in particles[:]:
             p[0]+=p[2]; p[1]+=p[3]; p[4]-=1
