@@ -31,8 +31,10 @@ python3 p2.py
 ​🎮 Steuerung
 
 ​Dieses Spiel nutzt eine moderne, auf Swipes (Wischgesten) basierte Steuerung – perfekt für Touchscreens, aber auch am PC spielbar!
-​Am PC: Klicke mit der linken Maustaste, halte sie gedrückt und ziehe die Maus kurz in die gewünschte Richtung (Drag-Geste).
-​Am Touchscreen: Wische einfach auf dem Bildschirm in die Richtung, in die die Schlange kriechen soll.
+**Wichtig:** Alle Wischgesten müssen im **dunklen Steuerungsbereich** am unteren Bildschirmrand ausgeführt werden.
+
+*   **Am PC:** Klicke mit der linken Maustaste in den unteren Steuerungsbereich, halte sie gedrückt und ziehe die Maus kurz in die gewünschte Richtung (Drag-Geste).
+*   **Am Touchscreen:** Wische mit dem Finger im unteren Steuerungsbereich in die Richtung, in die die Schlange kriechen soll.
 
 ​✨ Features
 

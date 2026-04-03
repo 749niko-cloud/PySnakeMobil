@@ -611,6 +611,8 @@ def gameLoop(p_name):
         dis.blit(get_font(120).render(str(score), True, white), (50, 45))
         hs_txt = get_font(60).render(f"BEST: {best_s}", True, yellow); dis.blit(hs_txt, (w-hs_txt.get_width()-180, 70))
         ctrl_y = h - control_h; pygame.draw.rect(dis, (15,15,15), [0,ctrl_y,w,control_h])
+        swipe_info = get_font(50).render("SWIPE HERE TO CONTROL", True, (50, 50, 50))
+        dis.blit(swipe_info, (w//2 - swipe_info.get_width()//2, ctrl_y + control_h//2 - 25))
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
         for event in pygame.event.get():
