@@ -214,9 +214,18 @@ def get_point_at_distance(path, head_idx, distance):
         curr_idx -= 1
     return path[0], 0
 
+# PERFORMANCE-UPDATE FÜR DAS INTRO: Segment-Caching
+_segment_cache = {}
+def get_cached_segment(w_seg, h_seg):
+    key = (w_seg, h_seg)
+    if key not in _segment_cache:
+        surf = pygame.Surface((w_seg, h_seg), pygame.SRCALPHA)
+        pygame.draw.rect(surf, (0, 100, 0), [0, 0, w_seg, h_seg], border_radius=10)
+        _segment_cache[key] = surf
+    return _segment_cache[key]
+
 def draw_oriented_body(surface, cx, cy, w_seg, h_seg, dx, dy):
-    surf = pygame.Surface((w_seg, h_seg), pygame.SRCALPHA)
-    pygame.draw.rect(surf, (0, 100, 0), [0, 0, w_seg, h_seg], border_radius=10)
+    surf = get_cached_segment(w_seg, h_seg)
     angle = math.degrees(math.atan2(dx, dy))
     rotated = pygame.transform.rotate(surf, angle)
     surface.blit(rotated, rotated.get_rect(center=(cx, cy)))
@@ -522,14 +531,33 @@ def gameLoop(p_name):
     shell_particles = [] 
 
     def draw_snake(is_dead=False):
+        TAPER_ZONE   = 5    # Schwanzbereich, in dem die Beule schrumpft
+        FULL_DIG_OFF = -10  # Offset bei voller Beule
+
         for i, b in enumerate(snake_list):
-            is_head, is_dig = (i == len(snake_list)-1), i in digesting_indices
-            mampf = 12 if (is_head and mouth_open_timer > 0) else 0
-            extra = 8 if is_dig else (4 if (i == 0 and shrink_timer > 0) else 0)
-            if is_head or is_dig or (i == 0 and shrink_timer > 0): off = -2 - mampf - extra
-            else: off = (8 - (i * 2) if i < 4 else 2)
-            color = (0, 255, 100) if is_dig else (head_color if is_head else green)
-            pygame.draw.rect(dis, color, [b[0]+off, b[1]+off, BLOCK-off*2, BLOCK-off*2], border_radius=(12 if is_head else 6))
+            is_head = (i == len(snake_list) - 1)
+            is_dig  = i in digesting_indices
+            mampf   = 12 if (is_head and mouth_open_timer > 0) else 0
+
+            if is_head:
+                off   = -2 - mampf
+                color = head_color
+            elif is_dig:
+                # Natürlicher dünner Offset an dieser Schwanzposition
+                natural_off = (8 - i * 2) if i < 4 else 2
+                # fade: 0.0 am Schwanz → 1.0 weiter innen (kein Taper)
+                fade = min(1.0, i / TAPER_ZONE)
+                off  = int(FULL_DIG_OFF * fade + natural_off * (1.0 - fade))
+                # Farbe mitblenden: grün → türkis
+                color = (0, 255, int(fade * 100))
+            else:
+                off   = (8 - i * 2) if i < 4 else 2
+                if i == 0 and shrink_timer > 0:
+                    off = min(off + 4, 12)
+                color = green
+
+            pygame.draw.rect(dis, color, [b[0]+off, b[1]+off, BLOCK-off*2, BLOCK-off*2],
+                             border_radius=(12 if is_head else 6))
             if is_head:
                 if is_dead: draw_dead_eyes(b[0], b[1])
                 else:
