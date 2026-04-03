@@ -105,7 +105,7 @@ def full_screen_exit():
     dis.fill(black)
     l1 = get_font(150).render("ciao !", True, white)
     l2 = get_font(55).render("made by NikO", True, yellow)
-    l3 = get_font(45).render("with a \"littel\" help of Gemini", True, white)
+    l3 = get_font(45).render("with a \"little\" help of Gemini", True, white)
     dis.blit(l1, (w//2-l1.get_width()//2, h//2-150))
     dis.blit(l2, (w//2-l2.get_width()//2, h//2+20))
     dis.blit(l3, (w//2-l3.get_width()//2, h//2+100))
@@ -247,7 +247,7 @@ def get_head_surf(t_now):
     return surf
 
 # --- SCREENS ---
-def show_start_screen():
+def show_start_screen(last_player_name=""):
     global current_track_idx, FIRST_START
     if FIRST_START:
         terminal_font = get_font(35)
@@ -408,7 +408,7 @@ def show_start_screen():
             pygame.time.set_timer(MUSIC_EVENT, music_interval)
         FIRST_START = False
 
-    player_name, input_active = "", True
+    player_name, input_active = last_player_name, True
     pygame.key.start_text_input()
     matrix_columns = [random.randint(0, h) for _ in range(w // 40)]
     
@@ -448,12 +448,17 @@ def show_start_screen():
             if blink < 0.2:
                 lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
                 pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, int(lh)])
-        input_rect = pygame.Rect(w//2-350, 470, 700, 120)
+        input_rect = pygame.Rect(w//2-350, h * 0.4, 700, 120)
         pygame.draw.rect(dis, yellow if input_active else (100,100,100), input_rect, 6, border_radius=15)
         name_surf = get_font(90).render(player_name + ("|" if input_active and int(t_now*2)%2==0 else ""), True, white)
         dis.blit(name_surf, (input_rect.centerx-name_surf.get_width()//2, input_rect.y+15))
-        start_btn = pygame.draw.rect(dis, green, [w//2-200, 640, 400, 120], border_radius=15)
-        dis.blit(get_font(80).render("START", True, black), (start_btn.centerx-110, start_btn.y+20))
+        
+        start_btn_y = h * 0.6
+        start_btn = pygame.draw.rect(dis, green, [w//2-200, start_btn_y, 400, 120], border_radius=15)
+        start_text = get_font(80).render("START", True, black)
+        start_text_rect = start_text.get_rect(center=start_btn.center)
+        dis.blit(start_text, start_text_rect)
+        
         scores_data = []
         if os.path.exists("top10.txt"):
             try:
@@ -464,8 +469,12 @@ def show_start_screen():
                             scores_data.append((int(parts[0]), parts[1]))
                 scores_data = sorted(scores_data, key=lambda x: x[0], reverse=True)[:10]
             except: pass
-        for i in range(10):
-            y_pos = 780 + i * 42
+        
+        leaderboard_y_start = start_btn_y + 140
+        for i in range(5): # Limit to 5 scores to avoid overlap
+            y_pos = leaderboard_y_start + i * 42
+            if y_pos > h - 150: break # Stop if we risk drawing off-screen
+            
             num_txt = f"{i+1:2d}. "
             if i < len(scores_data):
                 s, n = scores_data[i]
@@ -476,10 +485,16 @@ def show_start_screen():
                 color = (80, 80, 80)
             score_surf = get_font(38).render(txt_content, True, color)
             dis.blit(score_surf, (w//2 - score_surf.get_width()//2, y_pos))
+        
         music_btns = []
+        music_btn_y = h - 110
         for i, lab in enumerate(["CHASE", "GROOVE", "ZEN", "OFF"]):
-            r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, 1200, 260, 90], border_radius=10)
-            music_btns.append(r); dis.blit(get_font(40).render(lab, True, black if current_track_idx==i else white), (r.centerx-55, r.y+25))
+            r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, music_btn_y, 260, 90], border_radius=10)
+            music_btns.append(r)
+            btn_text = get_font(40).render(lab, True, black if current_track_idx==i else white)
+            btn_text_rect = btn_text.get_rect(center=r.center)
+            dis.blit(btn_text, btn_text_rect)
+        
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
         for event in pygame.event.get():
@@ -585,6 +600,7 @@ def gameLoop(p_name):
         pygame.display.update(); clock.tick(60)
 
     # --- START-WAIT ---
+    pygame.event.clear() # <- BUGFIX: Events aus Game Over Screen löschen
     while not game_active:
         dis.fill(black)
         pygame.draw.ellipse(dis, white, [target_x+10, target_y+5, BLOCK-20, BLOCK-10])
@@ -592,16 +608,30 @@ def gameLoop(p_name):
         info_txt = get_font(50).render("SWIPE ZUM SCHLÜPFEN", True, (150, 150, 150))
         dis.blit(info_txt, (w//2 - info_txt.get_width()//2, h - control_h // 2 - 25))
         for event in pygame.event.get():
-            if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h-control_h): swipe_pos = event.pos
+            if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h - control_h):
+                swipe_pos = event.pos
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
-                dx, dy = event.pos[0]-swipe_pos[0], event.pos[1]-swipe_pos[1]
-                if abs(dx)>50 or abs(dy)>50:
-                    game_active = True
-                    if abs(dx)>abs(dy): new_d = "R" if dx>0 else "L"
-                    else: new_d = "D" if dy>0 else "U"
-                    direction_queue.append(new_d)
-                    for d_x, d_y in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1), (0,1), (-1,0), (1,0)]:
-                        shell_particles.append({'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2, 'vx': d_x * random.uniform(1.5, 4), 'vy': d_y * random.uniform(1.5, 4), 'life': 22, 'rot': random.randint(0,360)})
+                dx, dy = event.pos[0] - swipe_pos[0], event.pos[1] - swipe_pos[1]
+                if abs(dx) > 50 or abs(dy) > 50:
+                    if not game_active:
+                        game_active = True
+                        # Egg-breaking particles, only on first swipe segment
+                        for d_x, d_y in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1), (0,1), (-1,0), (1,0)]:
+                            shell_particles.append({'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2, 'vx': d_x * random.uniform(1.5, 4), 'vy': d_y * random.uniform(1.5, 4), 'life': 22, 'rot': random.randint(0,360)})
+
+                    new_d = ""
+                    if abs(dx) > abs(dy):
+                        new_d = "R" if dx > 0 else "L"
+                    else:
+                        new_d = "D" if dy > 0 else "U"
+                    
+                    last_queued = direction_queue[-1] if direction_queue else ""
+                    if new_d and new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(last_queued) and new_d != last_queued:
+                        direction_queue.append(new_d)
+                    
+                    swipe_pos = event.pos # Reset for next segment
+            elif event.type == pygame.MOUSEBUTTONUP:
+                swipe_pos = None
         pygame.display.update(); clock.tick(60)
 
     # --- HAUPTSPIEL ---
@@ -611,6 +641,8 @@ def gameLoop(p_name):
         dis.blit(get_font(120).render(str(score), True, white), (50, 45))
         hs_txt = get_font(60).render(f"BEST: {best_s}", True, yellow); dis.blit(hs_txt, (w-hs_txt.get_width()-180, 70))
         ctrl_y = h - control_h; pygame.draw.rect(dis, (15,15,15), [0,ctrl_y,w,control_h])
+        swipe_info = get_font(50).render("SWIPE HERE TO CONTROL", True, (50, 50, 50))
+        dis.blit(swipe_info, (w//2 - swipe_info.get_width()//2, ctrl_y + control_h//2 - 25))
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
         for event in pygame.event.get():
@@ -619,16 +651,25 @@ def gameLoop(p_name):
                 if r_exit.collidepoint(event.pos): full_screen_exit()
                 if event.pos[1] > ctrl_y: swipe_pos = event.pos; trail = [event.pos]
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
-                trail.append(event.pos); dx, dy = event.pos[0]-swipe_pos[0], event.pos[1]-swipe_pos[1]
+                trail.append(event.pos)
+                dx, dy = event.pos[0] - swipe_pos[0], event.pos[1] - swipe_pos[1]
                 if abs(dx) > 70 or abs(dy) > 70:
                     new_d = ""
-                    if abs(dx) > abs(dy): new_d = "R" if dx > 0 else "L"
-                    else: new_d = "D" if dy > 0 else "U"
-                    check_dir = direction_queue[-1] if direction_queue else last_dir
-                    if new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(check_dir) and new_d != check_dir:
+                    if abs(dx) > abs(dy):
+                        new_d = "R" if dx > 0 else "L"
+                    else:
+                        new_d = "D" if dy > 0 else "U"
+                    
+                    last_queued = direction_queue[-1] if direction_queue else last_dir
+                    
+                    # Prevent adding direct reverses or duplicates
+                    if new_d and new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(last_queued) and new_d != last_queued:
                         direction_queue.append(new_d)
-                        swipe_pos = event.pos
-            elif event.type == pygame.MOUSEBUTTONUP: swipe_pos = None; trail = []
+                    
+                    swipe_pos = event.pos  # Reset swipe origin for next segment
+            elif event.type == pygame.MOUSEBUTTONUP:
+                swipe_pos = None
+                trail = []
         
         if len(trail) > 1: pygame.draw.lines(dis, red, False, trail, 10)
         
@@ -650,7 +691,8 @@ def gameLoop(p_name):
                 share_btn = pygame.Rect(w//2-btn_w//2, h//2+50, btn_w, btn_h)
                 pygame.draw.rect(dis, blue_share, share_btn, border_radius=20)
                 sh_txt = get_font(55).render("SCREENSHOT", True, white)
-                dis.blit(sh_txt, (share_btn.centerx-sh_txt.get_width()//2, share_btn.centery-30))
+                sh_txt_rect = sh_txt.get_rect(center=share_btn.center)
+                dis.blit(sh_txt, sh_txt_rect)
                 pygame.display.update()
                 if is_hs: play_victory_sound()
                 else: play_game_over_crash()
@@ -732,4 +774,13 @@ def gameLoop(p_name):
         pygame.display.update(); clock.tick(60)
 
 # --- PROGRAMMSTART ---
-while True: gameLoop(show_start_screen())
+last_player_name = ""
+while True: 
+    player_name = show_start_screen(last_player_name)
+    if player_name:
+        last_player_name = player_name
+        gameLoop(player_name)
+    else:
+        break
+pygame.quit()
+sys.exit()
