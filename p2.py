@@ -448,12 +448,15 @@ def show_start_screen():
             if blink < 0.2:
                 lh = 44 if blink < 0.1 else 44 * (1 - (blink-0.1)/0.1)
                 pygame.draw.rect(dis, head_color, [ex-23, my+50-22, 46, int(lh)])
-        input_rect = pygame.Rect(w//2-350, 470, 700, 120)
+        input_rect = pygame.Rect(w//2-350, h * 0.4, 700, 120)
         pygame.draw.rect(dis, yellow if input_active else (100,100,100), input_rect, 6, border_radius=15)
         name_surf = get_font(90).render(player_name + ("|" if input_active and int(t_now*2)%2==0 else ""), True, white)
         dis.blit(name_surf, (input_rect.centerx-name_surf.get_width()//2, input_rect.y+15))
-        start_btn = pygame.draw.rect(dis, green, [w//2-200, 640, 400, 120], border_radius=15)
+        
+        start_btn_y = h * 0.6
+        start_btn = pygame.draw.rect(dis, green, [w//2-200, start_btn_y, 400, 120], border_radius=15)
         dis.blit(get_font(80).render("START", True, black), (start_btn.centerx-110, start_btn.y+20))
+        
         scores_data = []
         if os.path.exists("top10.txt"):
             try:
@@ -464,8 +467,12 @@ def show_start_screen():
                             scores_data.append((int(parts[0]), parts[1]))
                 scores_data = sorted(scores_data, key=lambda x: x[0], reverse=True)[:10]
             except: pass
-        for i in range(10):
-            y_pos = 780 + i * 42
+        
+        leaderboard_y_start = start_btn_y + 140
+        for i in range(5): # Limit to 5 scores to avoid overlap
+            y_pos = leaderboard_y_start + i * 42
+            if y_pos > h - 150: break # Stop if we risk drawing off-screen
+            
             num_txt = f"{i+1:2d}. "
             if i < len(scores_data):
                 s, n = scores_data[i]
@@ -476,10 +483,13 @@ def show_start_screen():
                 color = (80, 80, 80)
             score_surf = get_font(38).render(txt_content, True, color)
             dis.blit(score_surf, (w//2 - score_surf.get_width()//2, y_pos))
+        
         music_btns = []
+        music_btn_y = h - 110
         for i, lab in enumerate(["CHASE", "GROOVE", "ZEN", "OFF"]):
-            r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, 1200, 260, 90], border_radius=10)
+            r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, music_btn_y, 260, 90], border_radius=10)
             music_btns.append(r); dis.blit(get_font(40).render(lab, True, black if current_track_idx==i else white), (r.centerx-55, r.y+25))
+        
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
         for event in pygame.event.get():
