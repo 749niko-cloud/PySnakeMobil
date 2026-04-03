@@ -1,4 +1,4 @@
-# 🐍 Snake Core 2.0
+# 🐍 PYTHON 2
 
 Ein modernes, visuell aufgewertetes Remake des Snake-Klassikers! Erlebe weiche Animationen, coole Partikeleffekte, ein atmosphärisches Matrix-Intro und chillige Synth-Beats. ✨
 
