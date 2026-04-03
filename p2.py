@@ -247,7 +247,7 @@ def get_head_surf(t_now):
     return surf
 
 # --- SCREENS ---
-def show_start_screen():
+def show_start_screen(last_player_name=""):
     global current_track_idx, FIRST_START
     if FIRST_START:
         terminal_font = get_font(35)
@@ -408,7 +408,7 @@ def show_start_screen():
             pygame.time.set_timer(MUSIC_EVENT, music_interval)
         FIRST_START = False
 
-    player_name, input_active = "", True
+    player_name, input_active = last_player_name, True
     pygame.key.start_text_input()
     matrix_columns = [random.randint(0, h) for _ in range(w // 40)]
     
@@ -744,4 +744,13 @@ def gameLoop(p_name):
         pygame.display.update(); clock.tick(60)
 
 # --- PROGRAMMSTART ---
-while True: gameLoop(show_start_screen())
+last_player_name = ""
+while True: 
+    player_name = show_start_screen(last_player_name)
+    if player_name:
+        last_player_name = player_name
+        gameLoop(player_name)
+    else:
+        break
+pygame.quit()
+sys.exit()
