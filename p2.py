@@ -600,6 +600,7 @@ def gameLoop(p_name):
         pygame.display.update(); clock.tick(60)
 
     # --- START-WAIT ---
+    pygame.event.clear() # <- BUGFIX: Events aus Game Over Screen löschen
     while not game_active:
         dis.fill(black)
         pygame.draw.ellipse(dis, white, [target_x+10, target_y+5, BLOCK-20, BLOCK-10])
@@ -607,16 +608,30 @@ def gameLoop(p_name):
         info_txt = get_font(50).render("SWIPE ZUM SCHLÜPFEN", True, (150, 150, 150))
         dis.blit(info_txt, (w//2 - info_txt.get_width()//2, h - control_h // 2 - 25))
         for event in pygame.event.get():
-            if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h-control_h): swipe_pos = event.pos
+            if event.type == pygame.MOUSEBUTTONDOWN and event.pos[1] > (h - control_h):
+                swipe_pos = event.pos
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
-                dx, dy = event.pos[0]-swipe_pos[0], event.pos[1]-swipe_pos[1]
-                if abs(dx)>50 or abs(dy)>50:
-                    game_active = True
-                    if abs(dx)>abs(dy): new_d = "R" if dx>0 else "L"
-                    else: new_d = "D" if dy>0 else "U"
-                    direction_queue.append(new_d)
-                    for d_x, d_y in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1), (0,1), (-1,0), (1,0)]:
-                        shell_particles.append({'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2, 'vx': d_x * random.uniform(1.5, 4), 'vy': d_y * random.uniform(1.5, 4), 'life': 22, 'rot': random.randint(0,360)})
+                dx, dy = event.pos[0] - swipe_pos[0], event.pos[1] - swipe_pos[1]
+                if abs(dx) > 50 or abs(dy) > 50:
+                    if not game_active:
+                        game_active = True
+                        # Egg-breaking particles, only on first swipe segment
+                        for d_x, d_y in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1), (0,1), (-1,0), (1,0)]:
+                            shell_particles.append({'x': target_x + BLOCK//2, 'y': target_y + BLOCK//2, 'vx': d_x * random.uniform(1.5, 4), 'vy': d_y * random.uniform(1.5, 4), 'life': 22, 'rot': random.randint(0,360)})
+
+                    new_d = ""
+                    if abs(dx) > abs(dy):
+                        new_d = "R" if dx > 0 else "L"
+                    else:
+                        new_d = "D" if dy > 0 else "U"
+                    
+                    last_queued = direction_queue[-1] if direction_queue else ""
+                    if new_d and new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(last_queued) and new_d != last_queued:
+                        direction_queue.append(new_d)
+                    
+                    swipe_pos = event.pos # Reset for next segment
+            elif event.type == pygame.MOUSEBUTTONUP:
+                swipe_pos = None
         pygame.display.update(); clock.tick(60)
 
     # --- HAUPTSPIEL ---
@@ -636,16 +651,25 @@ def gameLoop(p_name):
                 if r_exit.collidepoint(event.pos): full_screen_exit()
                 if event.pos[1] > ctrl_y: swipe_pos = event.pos; trail = [event.pos]
             elif event.type == pygame.MOUSEMOTION and swipe_pos:
-                trail.append(event.pos); dx, dy = event.pos[0]-swipe_pos[0], event.pos[1]-swipe_pos[1]
+                trail.append(event.pos)
+                dx, dy = event.pos[0] - swipe_pos[0], event.pos[1] - swipe_pos[1]
                 if abs(dx) > 70 or abs(dy) > 70:
                     new_d = ""
-                    if abs(dx) > abs(dy): new_d = "R" if dx > 0 else "L"
-                    else: new_d = "D" if dy > 0 else "U"
-                    check_dir = direction_queue[-1] if direction_queue else last_dir
-                    if new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(check_dir) and new_d != check_dir:
+                    if abs(dx) > abs(dy):
+                        new_d = "R" if dx > 0 else "L"
+                    else:
+                        new_d = "D" if dy > 0 else "U"
+                    
+                    last_queued = direction_queue[-1] if direction_queue else last_dir
+                    
+                    # Prevent adding direct reverses or duplicates
+                    if new_d and new_d != {"R":"L", "L":"R", "U":"D", "D":"U"}.get(last_queued) and new_d != last_queued:
                         direction_queue.append(new_d)
-                        swipe_pos = event.pos
-            elif event.type == pygame.MOUSEBUTTONUP: swipe_pos = None; trail = []
+                    
+                    swipe_pos = event.pos  # Reset swipe origin for next segment
+            elif event.type == pygame.MOUSEBUTTONUP:
+                swipe_pos = None
+                trail = []
         
         if len(trail) > 1: pygame.draw.lines(dis, red, False, trail, 10)
         
