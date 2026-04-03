@@ -105,7 +105,7 @@ def full_screen_exit():
     dis.fill(black)
     l1 = get_font(150).render("ciao !", True, white)
     l2 = get_font(55).render("made by NikO", True, yellow)
-    l3 = get_font(45).render("with a \"littel\" help of Gemini", True, white)
+    l3 = get_font(45).render("with a \"little\" help of Gemini", True, white)
     dis.blit(l1, (w//2-l1.get_width()//2, h//2-150))
     dis.blit(l2, (w//2-l2.get_width()//2, h//2+20))
     dis.blit(l3, (w//2-l3.get_width()//2, h//2+100))
