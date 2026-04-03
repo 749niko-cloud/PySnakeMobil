@@ -1,39 +1,44 @@
-​🐍 Python 2 - Mobile Snake Game
-​Ein modernes, mobiles Schlangenspiel, das mit Python und Pygame entwickelt wurde. Dieses Spiel wurde speziell für die Nutzung auf Smartphones optimiert und bietet eine intuitive Touch-Steuerung sowie prozedural generierte Retro-Sounds.
+# 🐍 Snake Core 2.0
 
-​🚀 Installation & Start auf dem Handy
-​Um das Spiel mit der vorgesehenen Touch-Steuerung und im Vollbildmodus zu genießen, wird die Nutzung auf einem Android-Gerät empfohlen.
+Ein modernes, visuell aufgewertetes Remake des Snake-Klassikers! Erlebe weiche Animationen, coole Partikeleffekte, ein atmosphärisches Matrix-Intro und chillige Synth-Beats. ✨
 
-​1. App "Pydroid 3" installieren
-​Lade dir die App Pydroid 3 - IDE for Python 3 aus dem Google Play Store herunter. Dies ist die stabilste Umgebung, um Python-Skripte mit grafischer Oberfläche auf dem Handy auszuführen.
+---
 
-​2. Bibliotheken installieren
-​Öffne in Pydroid 3 das Menü (oben links) und gehe auf "Pip". Gib dort folgenden Befehl ein und klicke auf Install:
-pygame
+## 🛠 Voraussetzungen
 
-​3. Spiel starten
+## empfohlen ##
+Android 🤖 : python3 App installieren > Code einfügen > Play Button drücken.
 
-​Kopiere den Code der main.py in den Editor von Pydroid 3.
+Details 
+Bevor du loslegen kannst, brauchst du **Python 3** und die Bibliothek `pygame` auf deinem System. 
 
-​Speichere die Datei ab.
+1. **Python 3 installieren:** [python.org/downloads](https://www.python.org/downloads/)
+2. **Pygame installieren:** Öffne dein Terminal (oder die Eingabeaufforderung) und tippe:
 
-​Drücke den gelben Play-Button, um das Spiel zu starten.
+   ```bash
+   pip install pygame
+```
 
-​🎮 Features & Steuerung
-​Mobile-First: Steuerung der Schlange durch Wischgesten (Swipes) auf dem unteren Bildschirmbereich.
-​Adaptive Grafik: Das Spiel erkennt automatisch deine Bildschirmauflösung und passt das Raster an.
-​Dynamic Sound Engine: Drei verschiedene Musik-Tracks (G-Beat, Cyber, Retro), die in Echtzeit generiert werden.
-​Highscore-System: Deine Bestleistungen werden lokal in einer top10.txt gespeichert.
-​Visual FX: Animierte Augen, blinzelnde Menü-Elemente und "Mampf"-Animationen beim Fressen.
 
-​🛠️ Technische Details
-​Das Spiel nutzt fortgeschrittene Techniken der Spieleprogrammierung:
-​Prozedurale Audio-Synthese: Töne werden mathematisch über Sinus-, Sägezahn- und Pulse-Wellenformen erzeugt (f(t) = A \cdot \sin(2\pi ft)).
-​Modulo-Arithmetik: Ermöglicht das "Wrapping" der Spielfigur (die Schlange erscheint auf der gegenüberliegenden Seite wieder).
-​Input-Handling: Ein hybrider Event-Loop verarbeitet sowohl Tastatur- (PC) als auch Maus/Touch-Events (Mobile).
+🚀 Spiel starten
 
-​✍️ Credits
-​Lead Developer: NikO
-​Support: Gemini (Code-Optimierung & Sound-Logik)
-​Viel Spaß beim Jagen nach dem neuen Highscore! 🍎
-​
+​Navigiere im Terminal in den Ordner, in dem dein Spieleskipt (z.B. p2.py) liegt, und führe folgenden Befehl aus:
+
+python3 p2.py
+
+(Tipp: Unter Windows reicht meistens auch einfach python p2.py)
+
+​🎮 Steuerung
+
+​Dieses Spiel nutzt eine moderne, auf Swipes (Wischgesten) basierte Steuerung – perfekt für Touchscreens, aber auch am PC spielbar!
+​Am PC: Klicke mit der linken Maustaste, halte sie gedrückt und ziehe die Maus kurz in die gewünschte Richtung (Drag-Geste).
+​Am Touchscreen: Wische einfach auf dem Bildschirm in die Richtung, in die die Schlange kriechen soll.
+
+​✨ Features
+
+​🟢 Cyber-Intro: Atmosphärischer Startbildschirm im Matrix-Style.
+​🎶 Dynamic Audio: 3 wählbare Musik-Tracks (CHASE, GROOVE, ZEN) mit integrierten Beats.
+​🍎 Verdauungs-Logik: Die Schlange schluckt das Essen sichtbar und verdaut es mit einer weichen Animation.
+​🏆 Highscores: Dein bester Lauf wird automatisch lokal gespeichert (top10.txt).
+
+​Viel Spaß beim Zocken! 🕹️
