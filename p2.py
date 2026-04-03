@@ -455,7 +455,9 @@ def show_start_screen(last_player_name=""):
         
         start_btn_y = h * 0.6
         start_btn = pygame.draw.rect(dis, green, [w//2-200, start_btn_y, 400, 120], border_radius=15)
-        dis.blit(get_font(80).render("START", True, black), (start_btn.centerx-110, start_btn.y+20))
+        start_text = get_font(80).render("START", True, black)
+        start_text_rect = start_text.get_rect(center=start_btn.center)
+        dis.blit(start_text, start_text_rect)
         
         scores_data = []
         if os.path.exists("top10.txt"):
@@ -488,7 +490,10 @@ def show_start_screen(last_player_name=""):
         music_btn_y = h - 110
         for i, lab in enumerate(["CHASE", "GROOVE", "ZEN", "OFF"]):
             r = pygame.draw.rect(dis, green if current_track_idx==i else (60,60,60), [w//2-540+i*280, music_btn_y, 260, 90], border_radius=10)
-            music_btns.append(r); dis.blit(get_font(40).render(lab, True, black if current_track_idx==i else white), (r.centerx-55, r.y+25))
+            music_btns.append(r)
+            btn_text = get_font(40).render(lab, True, black if current_track_idx==i else white)
+            btn_text_rect = btn_text.get_rect(center=r.center)
+            dis.blit(btn_text, btn_text_rect)
         
         r_exit = pygame.Rect(w-140, 30, 110, 110); pygame.draw.rect(dis, red, r_exit, border_radius=20)
         pygame.draw.line(dis, white, (w-120, 50), (w-50, 120), 12); pygame.draw.line(dis, white, (w-50, 50), (w-120, 120), 12)
@@ -662,7 +667,8 @@ def gameLoop(p_name):
                 share_btn = pygame.Rect(w//2-btn_w//2, h//2+50, btn_w, btn_h)
                 pygame.draw.rect(dis, blue_share, share_btn, border_radius=20)
                 sh_txt = get_font(55).render("SCREENSHOT", True, white)
-                dis.blit(sh_txt, (share_btn.centerx-sh_txt.get_width()//2, share_btn.centery-30))
+                sh_txt_rect = sh_txt.get_rect(center=share_btn.center)
+                dis.blit(sh_txt, sh_txt_rect)
                 pygame.display.update()
                 if is_hs: play_victory_sound()
                 else: play_game_over_crash()
